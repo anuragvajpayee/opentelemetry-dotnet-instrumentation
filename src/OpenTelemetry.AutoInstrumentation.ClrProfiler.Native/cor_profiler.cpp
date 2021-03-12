@@ -427,8 +427,8 @@ HRESULT STDMETHODCALLTYPE CorProfiler::ModuleLoadFinished(ModuleID module_id,
   // but the Datadog.Trace.ClrProfiler.Managed.Loader assembly that the startup hook loads from a
   // byte array will be loaded into a non-shared AppDomain.
   // In this case, do not insert another startup hook into that non-shared AppDomain
-  if (module_info.assembly.name == WStr("Datadog.Trace.ClrProfiler.Managed.Loader")) {
-    Info("ModuleLoadFinished: Datadog.Trace.ClrProfiler.Managed.Loader loaded into AppDomain ",
+  if (module_info.assembly.name == WStr("Inception.ClrProfiler.Managed.Loader")) {
+    Info("ModuleLoadFinished: Inception.ClrProfiler.Managed.Loader loaded into AppDomain ",
           app_domain_id, " ", module_info.assembly.app_domain_name);
     first_jit_compilation_app_domains.insert(app_domain_id);
     return S_OK;
@@ -678,7 +678,7 @@ HRESULT STDMETHODCALLTYPE CorProfiler::JITCompilationStarted(
 
   // IIS: Ensure that the startup hook is inserted into System.Web.Compilation.BuildManager.InvokePreStartInitMethods.
   // This will be the first call-site considered for the startup hook injection,
-  // which correctly loads Datadog.Trace.ClrProfiler.Managed.Loader into the application's
+  // which correctly loads Inception.ClrProfiler.Managed.Loader into the application's
   // own AppDomain because at this point in the code path, the ApplicationImpersonationContext
   // has been started.
   //
@@ -2142,17 +2142,17 @@ Debug("GenerateVoidILStartupMethod: Linux: Setting the PInvoke native profiler l
     return hr;
   }
 
-  // Create a string representing "Datadog.Trace.ClrProfiler.Managed.Loader.Startup"
+  // Create a string representing "Inception.ClrProfiler.Managed.Loader.Startup"
   // Create OS-specific implementations because on Windows, creating the string via
-  // "Datadog.Trace.ClrProfiler.Managed.Loader.Startup"_W.c_str() does not create the
+  // "Inception.ClrProfiler.Managed.Loader.Startup"_W.c_str() does not create the
   // proper string for CreateInstance to successfully call
 #ifdef _WIN32
   LPCWSTR load_helper_str =
-      L"Datadog.Trace.ClrProfiler.Managed.Loader.Startup";
+      L"Inception.ClrProfiler.Managed.Loader.Startup";
   auto load_helper_str_size = wcslen(load_helper_str);
 #else
   char16_t load_helper_str[] =
-      u"Datadog.Trace.ClrProfiler.Managed.Loader.Startup";
+      u"Inception.ClrProfiler.Managed.Loader.Loader.Startup";
   auto load_helper_str_size = std::char_traits<char16_t>::length(load_helper_str);
 #endif
 
@@ -2383,7 +2383,7 @@ Debug("GenerateVoidILStartupMethod: Linux: Setting the PInvoke native profiler l
   pNewInstr->m_Arg8 = 6;
   rewriter_void.InsertBefore(pFirstInstr, pNewInstr);
 
-  // Step 4) Call instance method Assembly.CreateInstance("Datadog.Trace.ClrProfiler.Managed.Loader.Startup")
+  // Step 4) Call instance method Assembly.CreateInstance("Inception.ClrProfiler.Managed.Loader.Startup")
 
   // ldloc.s 6 : Load the "loadedAssembly" variable (locals index 6) to call Assembly.CreateInstance
   pNewInstr = rewriter_void.NewILInstr();
@@ -2391,7 +2391,7 @@ Debug("GenerateVoidILStartupMethod: Linux: Setting the PInvoke native profiler l
   pNewInstr->m_Arg8 = 6;
   rewriter_void.InsertBefore(pFirstInstr, pNewInstr);
 
-  // ldstr "Datadog.Trace.ClrProfiler.Managed.Loader.Startup"
+  // ldstr "Inception.ClrProfiler.Managed.Loader.Startup"
   pNewInstr = rewriter_void.NewILInstr();
   pNewInstr->m_opcode = CEE_LDSTR;
   pNewInstr->m_Arg32 = load_helper_token;
@@ -2515,18 +2515,19 @@ HRESULT CorProfiler::AddIISPreStartInitFlags(
       sizeof(appdomain_set_data_signature),
       &appdomain_set_data_member_ref);
 
-  // Define "Datadog_IISPreInitStart" string
+  // Define "Inception_IISPreInitStart" string
+  // Check if IIS automatic instrumentation has set the AppDomain property to indicate the PreStartInit state
   // Create a string representing
   // "Datadog.Trace.ClrProfiler.Managed.Loader.Startup" Create OS-specific
   // implementations because on Windows, creating the string via
   // "Datadog.Trace.ClrProfiler.Managed.Loader.Startup"_W.c_str() does not
   // create the proper string for CreateInstance to successfully call
 #ifdef _WIN32
-  LPCWSTR pre_init_start_str = L"Datadog_IISPreInitStart";
+  LPCWSTR pre_init_start_str = L"Inception_IISPreInitStart";
   auto pre_init_start_str_size = wcslen(pre_init_start_str);
 #else
   char16_t pre_init_start_str[] =
-      u"Datadog_IISPreInitStart";
+      u"Inception_IISPreInitStart";
   auto pre_init_start_str_size =
       std::char_traits<char16_t>::length(pre_init_start_str);
 #endif

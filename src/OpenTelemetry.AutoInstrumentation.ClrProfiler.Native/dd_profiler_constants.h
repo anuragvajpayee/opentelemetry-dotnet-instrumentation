@@ -8,7 +8,7 @@
 
 namespace trace {
 
-  inline WSTRING env_vars_to_display[]{
+inline WSTRING env_vars_to_display[]{
     environment::tracing_enabled,
     environment::debug_enabled,
     environment::calltarget_enabled,
@@ -33,8 +33,9 @@ namespace trace {
     environment::azure_app_services_app_pool_id,
     environment::azure_app_services_cli_telemetry_profile_value};
 
-  inline WSTRING skip_assembly_prefixes[]{
+inline WSTRING skip_assembly_prefixes[]{
     WStr("Datadog.Trace"),
+    WStr("Inception"),
     WStr("OpenTelemetry.AutoInstrumentation"),
     WStr("MessagePack"),
     WStr("Microsoft.AI"),
@@ -57,21 +58,22 @@ namespace trace {
     WStr("System.Threading"),
     WStr("System.Xml"),
     WStr("Newtonsoft"),
-  };
+};
 
-  inline WSTRING skip_assemblies[]{
-      WStr("mscorlib"),
-      WStr("netstandard"),
-      WStr("System.Configuration"),
-      WStr("Microsoft.AspNetCore.Razor.Language"),
-      WStr("Microsoft.AspNetCore.Mvc.RazorPages"),
-      WStr("Anonymously Hosted DynamicMethods Assembly"),
-      WStr("ISymWrapper")
-  };
+inline WSTRING skip_assemblies[]{
+    WStr("mscorlib"),
+    WStr("netstandard"),
+    WStr("System.Configuration"),
+    WStr("Microsoft.AspNetCore.Razor.Language"),
+    WStr("Microsoft.AspNetCore.Mvc.RazorPages"),
+    WStr("Anonymously Hosted DynamicMethods Assembly"),
+    WStr("ISymWrapper")};
 
-  inline WSTRING managed_profiler_full_assembly_version = WStr("OpenTelemetry.AutoInstrumentation.ClrProfiler.Managed, Version=1.24.0.0, Culture=neutral, PublicKeyToken=34b8972644a12429");
+inline WSTRING managed_profiler_full_assembly_version = WStr(
+    "OpenTelemetry.AutoInstrumentation.ClrProfiler.Managed, Version=1.24.0.0, "
+    "Culture=neutral, PublicKeyToken=34b8972644a12429");
 
-  inline WSTRING calltarget_modification_action = WStr("CallTargetModification");
+inline WSTRING calltarget_modification_action = WStr("CallTargetModification");
 
 }  // namespace trace
 

@@ -24,19 +24,19 @@ class CallTargetTokens {
   void* module_metadata_ptr = nullptr;
 
   // CallTarget constants
-  WSTRING managed_profiler_calltarget_type = WStr("Datadog.Trace.ClrProfiler.CallTarget.CallTargetInvoker");
+  WSTRING managed_profiler_calltarget_type = WStr("Inception.ClrProfiler.CallTarget.CallTargetInvoker");
   WSTRING managed_profiler_calltarget_beginmethod_name = WStr("BeginMethod");
   WSTRING managed_profiler_calltarget_endmethod_name = WStr("EndMethod");
   WSTRING managed_profiler_calltarget_logexception_name = WStr("LogException");
   WSTRING managed_profiler_calltarget_getdefaultvalue_name = WStr("GetDefaultValue");
 
-  WSTRING managed_profiler_calltarget_statetype = WStr("Datadog.Trace.ClrProfiler.CallTarget.CallTargetState");
+  WSTRING managed_profiler_calltarget_statetype = WStr("Inception.ClrProfiler.CallTarget.CallTargetState");
   WSTRING managed_profiler_calltarget_statetype_getdefault_name =WStr("GetDefault");
 
-  WSTRING managed_profiler_calltarget_returntype = WStr("Datadog.Trace.ClrProfiler.CallTarget.CallTargetReturn");
+  WSTRING managed_profiler_calltarget_returntype = WStr("Inception.ClrProfiler.CallTarget.CallTargetReturn");
   WSTRING managed_profiler_calltarget_returntype_getdefault_name = WStr("GetDefault");
 
-  WSTRING managed_profiler_calltarget_returntype_generics = WStr("Datadog.Trace.ClrProfiler.CallTarget.CallTargetReturn`1");
+  WSTRING managed_profiler_calltarget_returntype_generics = WStr("Inception.ClrProfiler.CallTarget.CallTargetReturn`1");
   WSTRING managed_profiler_calltarget_returntype_getreturnvalue_name = WStr("GetReturnValue");
 
   // CorLib tokens
