@@ -1,8 +1,8 @@
 using System;
-using System.Text;
 using Datadog.Trace.Agent;
 using Datadog.Trace.Configuration;
 using Datadog.Trace.Sampling;
+using FluentAssertions;
 using Moq;
 using Xunit;
 
@@ -16,7 +16,7 @@ namespace Datadog.Trace.ClrProfiler.Managed.Tests
         {
             var settings = new TracerSettings();
             settings.Convention = ConventionType.OpenTelemetry;
-            var tracer = new Tracer(settings, Mock.Of<IAgentWriter>(), Mock.Of<ISampler>(), scopeManager: null, statsd: null);
+            var tracer = new Tracer(settings, Mock.Of<ITraceWriter>(), Mock.Of<ISampler>(), scopeManager: null, statsd: null);
 
             using (var scope = ScopeFactory.CreateOutboundHttpScope(tracer, input.Method, new Uri(input.Uri), new IntegrationInfo((int)IntegrationIds.HttpMessageHandler), out var tags))
             {
@@ -28,7 +28,7 @@ namespace Datadog.Trace.ClrProfiler.Managed.Tests
                     HttpUrlTag = span.GetTag("http.url"),
                 };
 
-                Assert.Equal(expected, actual);
+                actual.Should().BeEquivalentTo(expected);
             }
         }
 
@@ -43,18 +43,6 @@ namespace Datadog.Trace.ClrProfiler.Managed.Tests
             public string OperationName;
             public string HttpMethodTag;
             public string HttpUrlTag;
-
-            public override string ToString()
-            {
-                var sb = new StringBuilder();
-                sb.Append(Environment.NewLine);
-                foreach (var field in GetType().GetFields())
-                {
-                    sb.Append($"{field.Name}: {field.GetValue(this)}{Environment.NewLine}");
-                }
-
-                return sb.ToString();
-            }
         }
 
         public class TestData : TheoryData<Input, Result>

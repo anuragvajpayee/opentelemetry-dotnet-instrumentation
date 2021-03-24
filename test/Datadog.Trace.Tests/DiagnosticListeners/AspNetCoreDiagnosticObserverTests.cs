@@ -20,7 +20,7 @@ using Xunit.Sdk;
 
 namespace Datadog.Trace.Tests.DiagnosticListeners
 {
-    [CollectionDefinition(nameof(AspNetCoreDiagnosticObserverTests), DisableParallelization = true)]
+    [Collection(nameof(TracerInstanceTestCollection))]
     [TracerRestorer]
     public class AspNetCoreDiagnosticObserverTests
     {
@@ -86,7 +86,7 @@ namespace Datadog.Trace.Tests.DiagnosticListeners
         private static Tracer GetTracer()
         {
             var settings = new TracerSettings();
-            var writerMock = new Mock<IAgentWriter>();
+            var writerMock = new Mock<ITraceWriter>();
             var samplerMock = new Mock<ISampler>();
 
             return new Tracer(settings, writerMock.Object, samplerMock.Object, scopeManager: null, statsd: null);
