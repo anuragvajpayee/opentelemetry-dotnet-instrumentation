@@ -66,7 +66,7 @@ ARG PUBLISH_FOLDER
 ARG TRACER_HOME
 COPY --from=build-managed ${WORKSPACE} ${WORKSPACE}
 WORKDIR ${WORKSPACE}/src/OpenTelemetry.AutoInstrumentation.ClrProfiler.Native/build
-RUN cmake .. && make && cp -f ./bin/OpenTelemetry.AutoInstrumentation.ClrProfiler.Native.so ${PUBLISH_FOLDER}/
+RUN cmake .. && make && cp -f ./bin/OpenTelemetry.AutoInstrumentation.ClrProfiler.Native.so ${PUBLISH_FOLDER}/OpenTelemetry.AutoInstrumentation.ClrProfiler.Native.so
 RUN mkdir -p /var/log/opentelemetry/dotnet
 RUN touch /var/log/opentelemetry/dotnet/dotnet-tracer-native.log
 WORKDIR ${PUBLISH_FOLDER}

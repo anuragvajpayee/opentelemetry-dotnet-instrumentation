@@ -5,7 +5,10 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
 cd "$DIR/../.."
 
+buildConfiguration=${buildConfiguration:-Debug}
+publishTargetFramework=${publishTargetFramework:-netcoreapp3.1}
 PUBLISH_OUTPUT="$( pwd )/src/bin/managed-publish"
+
 mkdir -p "$PUBLISH_OUTPUT/netstandard2.0"
 mkdir -p "$PUBLISH_OUTPUT/netcoreapp3.1"
 
@@ -18,6 +21,12 @@ done
 
 dotnet publish -f netstandard2.0 -c $buildConfiguration src/Datadog.Trace.ClrProfiler.Managed/Datadog.Trace.ClrProfiler.Managed.csproj -o "$PUBLISH_OUTPUT/netstandard2.0"
 dotnet publish -f netcoreapp3.1 -c $buildConfiguration src/Datadog.Trace.ClrProfiler.Managed/Datadog.Trace.ClrProfiler.Managed.csproj -o "$PUBLISH_OUTPUT/netcoreapp3.1"
+
+# Exit if QUICK_BUILD env var is not empty
+if [ -n "${QUICK_BUILD-}" ]
+then
+    exit
+fi
 
 # Only build Samples.AspNetCoreMvc21 for netcoreapp2.1
 if [ "$publishTargetFramework" == "netcoreapp2.1" ]
@@ -36,6 +45,8 @@ if [ "$publishTargetFramework" == "netcoreapp3.1" ]
 then
     dotnet publish -f $publishTargetFramework -c $buildConfiguration test/test-applications/integrations/Samples.AspNetCoreMvc31/Samples.AspNetCoreMvc31.csproj -p:Configuration=$buildConfiguration -p:ManagedProfilerOutputDirectory="$PUBLISH_OUTPUT"
 fi
+
+dotnet publish -f $publishTargetFramework -c $buildConfiguration test/test-applications/instrumentation/CallTargetNativeTest/CallTargetNativeTest.csproj -p:Configuration=$buildConfiguration -p:ManagedProfilerOutputDirectory="$PUBLISH_OUTPUT"
 
 for sample in Samples.Elasticsearch Samples.Elasticsearch.V5 Samples.ServiceStack.Redis Samples.StackExchange.Redis Samples.SqlServer Samples.Microsoft.Data.SqlClient Samples.MongoDB Samples.HttpMessageHandler Samples.WebRequest Samples.Npgsql Samples.MySql Samples.GraphQL Samples.FakeKudu Samples.Dapper Samples.NoMultiLoader Samples.RabbitMQ Samples.RuntimeMetrics Samples.FakeDbCommand Samples.Microsoft.Data.Sqlite Samples.SQLite.Core Samples.OracleMDA Samples.OracleMDA.Core ; do
     dotnet publish -f $publishTargetFramework -c $buildConfiguration test/test-applications/integrations/$sample/$sample.csproj -p:Configuration=$buildConfiguration -p:ManagedProfilerOutputDirectory="$PUBLISH_OUTPUT"
