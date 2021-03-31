@@ -14,6 +14,7 @@ namespace Datadog.Trace.ClrProfiler.Managed.Loader
         /// </summary>
         static Startup()
         {
+            // Console.WriteLine("Startup Called - DD loader");
             ManagedProfilerDirectory = ResolveManagedProfilerDirectory();
 
             try
@@ -34,12 +35,14 @@ namespace Datadog.Trace.ClrProfiler.Managed.Loader
         {
             try
             {
-                var assembly = Assembly.Load("OpenTelemetry.AutoInstrumentation.ClrProfiler.Managed, Version=1.24.0.0, Culture=neutral, PublicKeyToken=34b8972644a12429");
+                // var assembly = Assembly.Load("OpenTelemetry.AutoInstrumentation.ClrProfiler.Managed, Version=1.24.0.0, Culture=neutral, PublicKeyToken=34b8972644a12429");
+                var assembly = Assembly.Load("Inception.ClrProfiler.Managed, Version=1.0.0.0, Culture=neutral, PublicKeyToken=d1cede69117c04c0");
 
                 if (assembly != null)
                 {
                     // call method Datadog.Trace.ClrProfiler.Instrumentation.Initialize()
-                    var type = assembly.GetType("Datadog.Trace.ClrProfiler.Instrumentation", throwOnError: false);
+                    // var type = assembly.GetType("Datadog.Trace.ClrProfiler.Instrumentation", throwOnError: false);
+                    var type = assembly.GetType("Inception.ClrProfiler.Instrumentation", throwOnError: false);
                     var method = type?.GetRuntimeMethod("Initialize", parameters: new Type[0]);
                     method?.Invoke(obj: null, parameters: null);
                 }

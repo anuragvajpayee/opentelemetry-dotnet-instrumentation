@@ -16,6 +16,7 @@
 #include "pal.h"
 #include "il_rewriter.h"
 #include "rejit_handler.h"
+#include "yaml_configs/yaml_config.h"
 
 namespace trace {
 
@@ -24,6 +25,8 @@ class CorProfiler : public CorProfilerBase {
   std::atomic_bool is_attached_ = {false};
   RuntimeInformation runtime_information_;
   std::vector<IntegrationMethod> integration_methods_;
+  std::vector<instrumentationConfig> yaml_configs;
+  std::vector<classMethodFilter> m_filtered_configs;
 
   // Startup helper variables
   bool first_jit_compilation_completed = false;
@@ -96,7 +99,8 @@ class CorProfiler : public CorProfilerBase {
   //
   size_t CallTarget_RequestRejitForModule(
     ModuleID module_id, ModuleMetadata* module_metadata,
-    const std::vector<IntegrationMethod>& filtered_integrations);
+      const std::vector<IntegrationMethod>& filtered_integrations,
+      const std::vector<classMethodFilter>& cmf);
   HRESULT CallTarget_RewriterCallback(RejitHandlerModule* moduleHandler, RejitHandlerModuleMethod* methodHandler);
 
  public:

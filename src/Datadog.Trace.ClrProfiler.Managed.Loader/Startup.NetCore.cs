@@ -32,6 +32,7 @@ namespace Datadog.Trace.ClrProfiler.Managed.Loader
         {
             var assemblyName = new AssemblyName(args.Name);
 
+            // Console.WriteLine("NetCore's ManageProfilerDependencies - " + assemblyName.Name + " " + args.RequestingAssembly);
             // On .NET Framework, having a non-US locale can cause mscorlib
             // to enter the AssemblyResolve event when searching for resources
             // in its satellite assemblies. This seems to have been fixed in
@@ -53,8 +54,8 @@ namespace Datadog.Trace.ClrProfiler.Managed.Loader
             // 2) The AssemblyVersion is lower than the version used by OpenTelemetry.AutoInstrumentation.ClrProfiler.Managed, the assembly will fail to load
             //    and invoke this resolve event. It must be loaded in a separate AssemblyLoadContext since the application will only
             //    load the originally referenced version
-            if (assemblyName.Name.StartsWith("OpenTelemetry.AutoInstrumentation.ClrProfiler.Managed", StringComparison.OrdinalIgnoreCase)
-             && assemblyName.FullName.IndexOf("PublicKeyToken=34b8972644a12429", StringComparison.OrdinalIgnoreCase) >= 0
+            if (assemblyName.Name.StartsWith("Inception.ClrProfiler.Managed", StringComparison.OrdinalIgnoreCase)
+             && assemblyName.FullName.IndexOf("PublicKeyToken=d1cede69117c04c0", StringComparison.OrdinalIgnoreCase) >= 0
              && File.Exists(path))
             {
                 StartupLogger.Debug("Loading {0} with Assembly.LoadFrom", path);

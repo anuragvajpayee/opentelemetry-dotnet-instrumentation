@@ -6,6 +6,11 @@
 namespace trace {
 namespace environment {
 
+// Sets the paths to integration definition YAML files.
+// Supports multiple values separated with semi-colons, for example:
+// "C:\Program Files\OpenTelemetry .NET AutoInstrumentation\integrations.yaml;D:\temp\test_integrations.yaml"
+const WSTRING yaml_paths = WStr("OTEL_YAML");
+
 // Sets whether the profiler is enabled. Default is true.
 // Setting this to false disabled the profiler entirely.
 const WSTRING tracing_enabled = WStr("OTEL_TRACE_ENABLED");

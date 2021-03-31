@@ -13,6 +13,7 @@ namespace Datadog.Trace.ClrProfiler.Managed.Loader
     {
         private static string ResolveManagedProfilerDirectory()
         {
+            Console.WriteLine("NetFramework's ResolvedProfiler Directory called");
             // We currently build two assemblies targeting .NET Framework.
             // If we're running on the .NET Framework, load the highest-compatible assembly
             string corlibFileVersionString = ((AssemblyFileVersionAttribute)typeof(object).Assembly.GetCustomAttribute(typeof(AssemblyFileVersionAttribute))).Version;
@@ -31,6 +32,7 @@ namespace Datadog.Trace.ClrProfiler.Managed.Loader
         private static Assembly AssemblyResolve_ManagedProfilerDependencies(object sender, ResolveEventArgs args)
         {
             var assemblyName = new AssemblyName(args.Name).Name;
+            Console.WriteLine("NetFrameWork's Loader.Startup - " + assemblyName);
 
             // On .NET Framework, having a non-US locale can cause mscorlib
             // to enter the AssemblyResolve event when searching for resources

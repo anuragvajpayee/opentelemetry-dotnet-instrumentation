@@ -12,6 +12,7 @@
 #include "il_rewriter.h"
 #include "il_rewriter_wrapper.h"
 #include "integration_loader.h"
+#include "yaml_configs/yaml_config_loader.h"
 #include "logging.h"
 #include "metadata_builder.h"
 #include "module_metadata.h"
@@ -19,6 +20,7 @@
 #include "sig_helpers.h"
 #include "resource.h"
 #include "util.h"
+#include "yaml_configs/clr_helpers_yaml.h"
 
 #ifdef MACOS
 #include <mach-o/getsect.h>
@@ -165,12 +167,18 @@ CorProfiler::Initialize(IUnknown* cor_profiler_info_unknown) {
   integration_methods_ =
       FlattenIntegrations(integrations, is_calltarget_enabled);
 
+  const std::vector<instrumentationConfig> all_configs =
+      LoadConfigsFromEnvironment();
+  // yaml_configs = VerifyConfigs(all_configs);
+  yaml_configs = all_configs;
+
     // check if there are any enabled integrations left
   if (integration_methods_.empty()) {
     Warn("DATADOG TRACER DIAGNOSTICS - Profiler disabled: no enabled integrations found.");
     return E_FAIL;
   } else {
     Debug("Number of Integrations loaded: ", integration_methods_.size());
+    Debug("Number of YAML loaded: ", all_configs.size());
   }
 
   const WSTRING netstandard_enabled =
@@ -319,7 +327,7 @@ HRESULT STDMETHODCALLTYPE CorProfiler::AssemblyLoadFinished(AssemblyID assembly_
     Debug("AssemblyLoadFinished: AssemblyName=", assembly_info.name, " AssemblyVersion=", assembly_metadata.version.str());
   }
 
-  if (assembly_info.name == WStr("OpenTelemetry.AutoInstrumentation.ClrProfiler.Managed")) {
+  if (assembly_info.name == WStr("Inception.ClrProfiler.Managed")) {
     // Configure a version string to compare with the profiler version
     std::stringstream ss;
     ss << assembly_metadata.version.major << '.'
@@ -353,14 +361,14 @@ HRESULT STDMETHODCALLTYPE CorProfiler::AssemblyLoadFinished(AssemblyID assembly_
 }
 
 HRESULT STDMETHODCALLTYPE CorProfiler::ModuleLoadFinished(ModuleID module_id,
-                                                          HRESULT hr_status) {
+                                                          HRESULT hr_status)  {
   if (FAILED(hr_status)) {
     // if module failed to load, skip it entirely,
     // otherwise we can crash the process if module is not valid
     CorProfilerBase::ModuleLoadFinished(module_id, hr_status);
     return S_OK;
   }
-
+  
   if (!is_attached_) {
     return S_OK;
   }
@@ -427,10 +435,11 @@ HRESULT STDMETHODCALLTYPE CorProfiler::ModuleLoadFinished(ModuleID module_id,
   // but the Datadog.Trace.ClrProfiler.Managed.Loader assembly that the startup hook loads from a
   // byte array will be loaded into a non-shared AppDomain.
   // In this case, do not insert another startup hook into that non-shared AppDomain
-  if (module_info.assembly.name == WStr("Inception.ClrProfiler.Managed.Loader")) {
+  if (module_info.assembly.name == WStr("Datadog.Trace.ClrProfiler.Managed.Loader")) {
     Info("ModuleLoadFinished: Inception.ClrProfiler.Managed.Loader loaded into AppDomain ",
           app_domain_id, " ", module_info.assembly.app_domain_name);
     first_jit_compilation_app_domains.insert(app_domain_id);
+    //std::cout << first_jit_compilation_app_domains.size() << "\n";
     return S_OK;
   }
 
@@ -465,6 +474,15 @@ HRESULT STDMETHODCALLTYPE CorProfiler::ModuleLoadFinished(ModuleID module_id,
     // we don't need to instrument anything in this module, skip it
     Debug("ModuleLoadFinished skipping module (filtered by caller): ",
           module_id, " ", module_info.assembly.name);
+    return S_OK;
+  }
+
+  std::vector<classMethodFilter> filtered_configs =
+      FilterByClass(yaml_configs, module_info.assembly);
+
+  if (filtered_configs.empty()) {
+    Debug("YAML: Skipping module by CLASS :", module_id, " ",
+          module_info.assembly.name);
     return S_OK;
   }
 
@@ -534,9 +552,12 @@ HRESULT STDMETHODCALLTYPE CorProfiler::ModuleLoadFinished(ModuleID module_id,
         module_info.assembly.app_domain_id, " ",
         module_info.assembly.app_domain_name);
 
+  //std::wcout << "ModuleLoadFinished stored metadata for " << module_info.assembly.name << "\n";
+
   // We call the function to analyze the module and request the ReJIT of integrations defined in this module.
   if (IsCallTargetEnabled()) {
-    CallTarget_RequestRejitForModule(module_id, module_metadata, filtered_integrations);
+    CallTarget_RequestRejitForModule(module_id, module_metadata,
+                                     filtered_integrations, filtered_configs);
   }
 
   return S_OK;
@@ -744,14 +765,14 @@ HRESULT STDMETHODCALLTYPE CorProfiler::JITCompilationStarted(
   if (method_replacements.empty()) {
     return S_OK;
   }
-
+  //std::cout << "skipping insertion calls\n";
   // Perform method insertion calls
-  hr = ProcessInsertionCalls(module_metadata,
+  /*hr = ProcessInsertionCalls(module_metadata,
                              function_id,
                              module_id,
                              function_token,
                              caller,
-                             method_replacements);
+                             method_replacements);*/
 
   if (FAILED(hr)) {
     Warn("JITCompilationStarted: Call to ProcessInsertionCalls() failed for ", function_id, " ", module_id, " ", function_token);
@@ -2148,7 +2169,7 @@ Debug("GenerateVoidILStartupMethod: Linux: Setting the PInvoke native profiler l
   // proper string for CreateInstance to successfully call
 #ifdef _WIN32
   LPCWSTR load_helper_str =
-      L"Inception.ClrProfiler.Managed.Loader.Startup";
+      L"Datadog.Trace.ClrProfiler.Managed.Loader.Startup";
   auto load_helper_str_size = wcslen(load_helper_str);
 #else
   char16_t load_helper_str[] =
@@ -2624,7 +2645,7 @@ void CorProfiler::GetAssemblyAndSymbolsBytes(BYTE** pAssemblyArray, int* assembl
   HINSTANCE hInstance = DllHandle;
   LPCWSTR dllLpName;
   LPCWSTR symbolsLpName;
-
+  //std::cout << "Inside GetAssemblyAndSymbolsBytes\n";
   if (runtime_information_.is_desktop()) {
     dllLpName = MAKEINTRESOURCE(NET45_MANAGED_ENTRYPOINT_DLL);
     symbolsLpName = MAKEINTRESOURCE(NET45_MANAGED_ENTRYPOINT_SYMBOLS);
@@ -2738,7 +2759,10 @@ HRESULT STDMETHODCALLTYPE CorProfiler::ReJITError(ModuleID moduleId, mdMethodDef
 /// <param name="module_metadata">Module metadata for the module</param>
 /// <param name="filtered_integrations">Filtered vector of integrations to be applied</param>
 /// <returns>Number of ReJIT requests made</returns>
-size_t CorProfiler::CallTarget_RequestRejitForModule(ModuleID module_id, ModuleMetadata* module_metadata, const std::vector<IntegrationMethod> &filtered_integrations) {
+size_t CorProfiler::CallTarget_RequestRejitForModule(
+    ModuleID module_id, ModuleMetadata* module_metadata,
+    const std::vector<IntegrationMethod>& filtered_integrations,
+    const std::vector<classMethodFilter>& cmf) {
   auto metadata_import = module_metadata->metadata_import;
   std::vector<ModuleID> vtModules;
   std::vector<mdMethodDef> vtMethodDefs;
@@ -2754,7 +2778,10 @@ size_t CorProfiler::CallTarget_RequestRejitForModule(ModuleID module_id, ModuleM
     if (integration.replacement.wrapper_method.action != calltarget_modification_action) {
       continue;
     }
-
+    //std::wcout << integration.replacement.target_method.type_name << "\n";
+    //std::wcout << module_metadata->assemblyName
+    //           << "\n";
+    //std::wcout << module_metadata->assembly_import;
     // We are in the right module, so we try to load the mdTypeDef from the integration target type name.
     mdTypeDef typeDef = mdTypeDefNil;
     auto hr = metadata_import->FindTypeDefByName(integration.replacement.target_method.type_name.c_str(), mdTokenNil, &typeDef);
@@ -2763,7 +2790,18 @@ size_t CorProfiler::CallTarget_RequestRejitForModule(ModuleID module_id, ModuleM
       continue;
     }
 
+    //std::wcout << "* - " << integration.replacement.target_method.method_name
+    //           << "\n";
+
     // Now we enumerate all methods with the same target method name. (All overloads of the method)
+    /*auto enumMethods = Enumerator<mdMethodDef>(
+        [metadata_import, integration, typeDef](HCORENUM* ptr, mdMethodDef arr[], ULONG max, ULONG* cnt) -> HRESULT {
+          return metadata_import->EnumMethodsWithName(ptr, typeDef, integration.replacement.target_method.method_name.c_str(), arr, max, cnt);
+        },
+        [metadata_import](HCORENUM ptr) -> void {
+          metadata_import->CloseEnum(ptr);
+        });*/
+
     auto enumMethods = Enumerator<mdMethodDef>(
         [metadata_import, integration, typeDef](HCORENUM* ptr, mdMethodDef arr[], ULONG max, ULONG* cnt) -> HRESULT {
           return metadata_import->EnumMethodsWithName(ptr, typeDef, integration.replacement.target_method.method_name.c_str(), arr, max, cnt);
@@ -2783,6 +2821,11 @@ size_t CorProfiler::CallTarget_RequestRejitForModule(ModuleID module_id, ModuleM
         enumIterator = ++enumIterator;
         continue;
       }
+
+      std::vector<classMethodFilter> overloads =
+          FilterByMethod(cmf, caller.name);
+      //std::wcout << overloads.size()
+      //          << " " << caller.name << "\n"; 
 
       // We create a new function info into the heap from the caller functionInfo in the stack, to be used later in the ReJIT process
       auto functionInfo = new FunctionInfo(caller);
@@ -2823,12 +2866,38 @@ size_t CorProfiler::CallTarget_RequestRejitForModule(ModuleID module_id, ModuleM
         continue;
       }
 
+      std::vector<WSTRING> argsList;
+      for (auto i : methodArguments)
+        argsList.push_back(i.GetTypeTokName(metadata_import));
+
+      wrapper theWrapper;
+      for (auto i : overloads) {
+        if (CheckForOverload(i, argsList, caller.name)) {
+          theWrapper = i.m_wrapper;
+        }
+      }
+
+      if (theWrapper.assembly == L"") {
+        enumIterator = ++enumIterator;
+        continue;
+      }
+      //std::wcout << "wrapper found - " << theWrapper.assembly << "\n";
+
+      MethodReference caller_method;
+      MethodReference target_method;
+      MethodReference wrapper_method(theWrapper.assembly, theWrapper.type, L"",
+                                     theWrapper.action, Version(), Version(),
+                                     {}, {});
+
       // As we are in the right method, we gather all information we need and stored it in to the ReJIT handler.
       auto moduleHandler = rejit_handler->GetOrAddModule(module_id);
       moduleHandler->SetModuleMetadata(module_metadata);
       auto methodHandler = moduleHandler->GetOrAddMethod(methodDef);
       methodHandler->SetFunctionInfo(functionInfo);
-      methodHandler->SetMethodReplacement(new MethodReplacement(integration.replacement));
+      methodHandler->SetMethodReplacement(
+          new MethodReplacement(caller_method, target_method, wrapper_method));
+      //std::wcout << integration.replacement.wrapper_method.type_name
+      //           << "\n";
 
       // Store module_id and methodDef to request the ReJIT after analyzing all integrations.
       vtModules.push_back(module_id);
@@ -2936,7 +3005,8 @@ HRESULT CorProfiler::CallTarget_RewriterCallback(RejitHandlerModule* moduleHandl
        ", IntegrationType=", method_replacement->wrapper_method.type_name,
        ", Arguments=", numArgs, 
        "]");
-
+  //std::wcout << "XXXCallTarget_RewriterCallBack() " << caller->type.name << "."
+  //           << caller->name << " " << method_replacement->wrapper_method.type_name << "\n";
   // *** Create rewriter
   ILRewriter rewriter(this->info_, methodHandler->GetFunctionControl(), module_id, function_token);
   bool modified = false;
@@ -3016,6 +3086,7 @@ HRESULT CorProfiler::CallTarget_RewriterCallback(RejitHandlerModule* moduleHandl
   unsigned elementType;
   if (numArgs <= 6) {
     // Load the arguments directly (FastPath)
+    std::cout << "Entering fast path\n";
     for (int i = 0; i < numArgs; i++) {
       reWriterWrapper.LoadArgument(i + (isStatic ? 0 : 1));
       auto argTypeFlags = methodArguments[i].GetTypeFlags(elementType);
@@ -3028,6 +3099,7 @@ HRESULT CorProfiler::CallTarget_RewriterCallback(RejitHandlerModule* moduleHandl
     }
   } else {
     // Load the arguments inside an object array (SlowPath)
+    //std::cout << "Entering slow path\n";
     reWriterWrapper.CreateArray(callTargetTokens->GetObjectTypeRef(), numArgs);
     for (int i = 0; i < numArgs; i++) {
       reWriterWrapper.BeginLoadValueIntoArray(i);
@@ -3055,6 +3127,7 @@ HRESULT CorProfiler::CallTarget_RewriterCallback(RejitHandlerModule* moduleHandl
   ILInstr* beginCallInstruction;
   switch (numArgs) { 
     case 0: {
+      //std::cout << "Zero arguments\n";
       IfFailRet(callTargetTokens->WriteBeginMethodWithoutArguments(
           &reWriterWrapper, wrapper_type_ref, &caller->type, 
           &beginCallInstruction));
@@ -3103,6 +3176,7 @@ HRESULT CorProfiler::CallTarget_RewriterCallback(RejitHandlerModule* moduleHandl
       break;
     }
     default: {
+      //std::cout << "Inside default case\n";
       IfFailRet(callTargetTokens->WriteBeginMethodWithArgumentsArray(
           &reWriterWrapper, wrapper_type_ref, &caller->type,
           &beginCallInstruction));

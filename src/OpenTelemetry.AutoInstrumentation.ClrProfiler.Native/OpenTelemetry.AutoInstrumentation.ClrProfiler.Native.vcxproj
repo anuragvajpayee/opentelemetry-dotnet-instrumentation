@@ -100,7 +100,7 @@
       <SDLCheck>true</SDLCheck>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <PreprocessorDefinitions>SPDLOG_FMT_EXTERNAL;BIT64;AMD64;_UNICODE;UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(LIB_INCLUDES);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\profiler\external\yaml-cpp-yaml-cpp-0.6.3\include;$(LIB_INCLUDES);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Lib>
       <AdditionalLibraryDirectories>$(LIB_INCLUDES);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -208,6 +208,9 @@
     <ClInclude Include="string.h" />
     <ClInclude Include="util.h" />
     <ClInclude Include="version.h" />
+    <ClInclude Include="yaml_configs\clr_helpers_yaml.h" />
+    <ClInclude Include="yaml_configs\yaml_config.h" />
+    <ClInclude Include="yaml_configs\yaml_config_loader.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="calltarget_tokens.cpp" />
@@ -226,6 +229,8 @@
     <ClCompile Include="sig_helpers.cpp" />
     <ClCompile Include="string.cpp" />
     <ClCompile Include="util.cpp" />
+    <ClCompile Include="yaml_configs\clr_helpers_yaml.cpp" />
+    <ClCompile Include="yaml_configs\yaml_config_loader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

@@ -116,6 +116,8 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ModuleDefinitionFile>.\OpenTelemetry.AutoInstrumentation.ClrProfiler.Native.def</ModuleDefinitionFile>
+      <AdditionalLibraryDirectories>..\..\..\profiler\external\yaml-cpp\ins\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>yaml-cpp.dll;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PreBuildEvent>
       <Command>IF EXIST $(SolutionDir)\pre-build-events-cpp.bat CALL $(SolutionDir)\pre-build-events-cpp.bat  "$(TargetPath)"  "$(TargetFileName)"  "$(TargetDir)"  "$(TargetName)"</Command>
