@@ -177,6 +177,7 @@ CorProfiler::Initialize(IUnknown* cor_profiler_info_unknown) {
       m_filtered_configs.push_back(j);
     }
   }
+
     // check if there are any enabled integrations left
   /*if (integration_methods_.empty()) {
     Warn("DATADOG TRACER DIAGNOSTICS - Profiler disabled: no enabled integrations found.");
@@ -2783,7 +2784,7 @@ size_t CorProfiler::CallTarget_RequestRejitForModule(
   auto metadata_import = module_metadata->metadata_import;
   std::vector<ModuleID> vtModules;
   std::vector<mdMethodDef> vtMethodDefs;
-
+  
   for (const classMethodFilter& filter : m_filtered_configs) {
 
     // If the integration is not for the current assembly we skip.
@@ -2841,9 +2842,17 @@ size_t CorProfiler::CallTarget_RequestRejitForModule(
       }
 
       std::vector<classMethodFilter> filtered_configs = FilterByClass(yaml_configs, caller.type.name);
+      if (filtered_configs.size() == 0) {
+        enumIterator = ++enumIterator;
+        continue;      
+      }
 
       std::vector<classMethodFilter> overloads =
           FilterByMethod(filtered_configs, caller.name);
+      if (overloads.size() == 0) {
+        enumIterator = ++enumIterator;
+        continue;
+      }
       //std::wcout << overloads.size()
       //          << " " << caller.name << "\n"; 
 
@@ -2885,23 +2894,29 @@ size_t CorProfiler::CallTarget_RequestRejitForModule(
         enumIterator = ++enumIterator;
         continue;
       }*/
-
       std::vector<WSTRING> argsList;
       for (auto i : methodArguments)
         argsList.push_back(i.GetTypeTokName(metadata_import));
 
-      wrapper theWrapper;
+      wrapper theWrapper(L"NULL", L"NULL", L"NULL", L"NULL", L"NULL");
       for (auto i : overloads) {
         if (CheckForOverload(i, argsList, caller.name)) {
           theWrapper = i.m_wrapper;
         }
       }
 
-      if (theWrapper.assembly == L"") {
+      if (theWrapper.assembly == L"NULL") {
         enumIterator = ++enumIterator;
         continue;
       }
-      //std::wcout << "wrapper found - " << theWrapper.assembly << "\n";
+      //std::wcout << "wrapper found - " << theWrapper.assembly << "for " << caller.name << "\n";
+
+      if (theWrapper.assembly == L"") {
+        //std::cout << "switching to default\n";
+        theWrapper.assembly = L"Inception.ClrProfiler.Managed, Version=1.0.0.0, Culture=neutral, PublicKeyToken=d1cede69117c04c0";
+        theWrapper.type = L"Inception.ClrProfiler.AutoInstrumentation.Custom.CustomIntegrations";
+        theWrapper.action = L"CallTargetModification";
+      }
 
       MethodReference caller_method;
       MethodReference target_method;

@@ -13,14 +13,12 @@ std::vector<instrumentationConfig> LoadConfigsFromEnvironment() {
   //std::string yamlDirectory = ToString(GetEnvironmentValues(environment::yaml_paths)[0]);
   std::string filePath = __FILE__;
   std::string yamlPath = filePath.substr(0, filePath.size() - 133) +
-                         "conf\\rules\\instrumentation\\test.yaml";
-
+                         "conf\\rules\\instrumentation";
   std::vector<std::string> yamlPaths;
 
   for (auto &p : std::filesystem::recursive_directory_iterator(yamlPath)) {
     if (p.path().extension() == ".yaml") {
       yamlPaths.push_back(p.path().string());
-      std::cout << p.path().string() << "\n";
     }
   }
 
@@ -83,8 +81,7 @@ std::pair<classMethodFilter, bool> FilterFromYaml(const YAML::Node& src) {
     wrapper_value = WrapperFromYaml(wrapper_src);
   }
 
-  if (!classMatch_src.IsNull() && !methodMatch_src.IsNull() &&
-      !wrapper_src.IsNull()) {
+  if (!classMatch_src.IsNull() && !methodMatch_src.IsNull()) {
     return std::make_pair<classMethodFilter, bool>(
         {name, id, classMatch_value, methodMatch_value, wrapper_value}, true);
   }
@@ -200,13 +197,14 @@ std::pair<methodMatchRule, bool> MethodMatchRuleFromYaml(
 }
 
 wrapper WrapperFromYaml(const YAML::Node& src) {
-  WSTRING assembly = L"";
-  WSTRING type = L"";
-  WSTRING method = L"";
-  WSTRING signature = L"";
-  WSTRING action = L"";
+  WSTRING assembly = L"DEFAULT";
+  WSTRING type = L"DEFAULT";
+  WSTRING method = L"DEFAULT";
+  WSTRING signature = L"DEFAULT";
+  WSTRING action = L"DEFAULT";
 
-  // std::cout << src;
+  //std::cout << src;
+  
 
   if (src["assembly"]) assembly = ToWSTRING(src["assembly"].as<std::string>());
   if (src["method"]) method = ToWSTRING(src["method"].as<std::string>());
