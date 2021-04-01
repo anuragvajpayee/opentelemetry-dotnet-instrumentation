@@ -6,7 +6,7 @@ namespace trace {
 
 std::vector<classMethodFilter> FilterByClass(
     const std::vector<instrumentationConfig>& all_configs,
-    const AssemblyInfo assembly);
+    const WSTRING& name);
 
 std::vector<classMethodFilter> FilterByMethod(
     const std::vector<classMethodFilter>& filted_cmf,

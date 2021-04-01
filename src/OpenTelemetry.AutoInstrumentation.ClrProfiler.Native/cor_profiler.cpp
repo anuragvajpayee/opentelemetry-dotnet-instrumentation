@@ -135,11 +135,11 @@ CorProfiler::Initialize(IUnknown* cor_profiler_info_unknown) {
   const WSTRING integrations_paths =
       GetEnvironmentValue(environment::integrations_path);
 
-  if (integrations_paths.empty()) {
+  /*if (integrations_paths.empty()) {
     Warn("DATADOG TRACER DIAGNOSTICS - Profiler disabled: ", environment::integrations_path,
          " environment variable not set.");
     return E_FAIL;
-  }
+  }*/
 
   const auto is_calltarget_enabled = IsCallTargetEnabled();
 
@@ -153,31 +153,45 @@ CorProfiler::Initialize(IUnknown* cor_profiler_info_unknown) {
   }
 
   // load all available integrations from JSON files
-  const std::vector<Integration> all_integrations =
-      LoadIntegrationsFromEnvironment();
+  //const std::vector<Integration> all_integrations =
+  //    LoadIntegrationsFromEnvironment();
 
   // get list of disabled integration names
-  const std::vector<WSTRING> disabled_integration_names =
-      GetEnvironmentValues(environment::disabled_integrations);
+  //const std::vector<WSTRING> disabled_integration_names =
+  //    GetEnvironmentValues(environment::disabled_integrations);
 
   // remove disabled integrations
-  const std::vector<Integration> integrations =
-      FilterIntegrationsByName(all_integrations, disabled_integration_names);
+  //const std::vector<Integration> integrations =
+  //    FilterIntegrationsByName(all_integrations, disabled_integration_names);
 
-  integration_methods_ =
-      FlattenIntegrations(integrations, is_calltarget_enabled);
+  //integration_methods_ =
+  //    FlattenIntegrations(integrations, is_calltarget_enabled);
 
   const std::vector<instrumentationConfig> all_configs =
       LoadConfigsFromEnvironment();
   // yaml_configs = VerifyConfigs(all_configs);
   yaml_configs = all_configs;
 
+  for (auto i : yaml_configs) {
+    for (auto j : i.m_classMethodFilters) {
+      m_filtered_configs.push_back(j);
+    }
+  }
     // check if there are any enabled integrations left
-  if (integration_methods_.empty()) {
+  /*if (integration_methods_.empty()) {
     Warn("DATADOG TRACER DIAGNOSTICS - Profiler disabled: no enabled integrations found.");
     return E_FAIL;
   } else {
     Debug("Number of Integrations loaded: ", integration_methods_.size());
+    Debug("Number of YAML loaded: ", all_configs.size());
+  }*/
+
+  if (yaml_configs.empty()) {
+    Warn(
+        "INCEPTION TRACER DIAGNOSTICS - Profiler disabled: no enabled "
+        "yaml rules found.");
+    return E_FAIL;
+  } else {
     Debug("Number of YAML loaded: ", all_configs.size());
   }
 
@@ -189,8 +203,8 @@ CorProfiler::Initialize(IUnknown* cor_profiler_info_unknown) {
   // users can opt-in to the additional instrumentation by setting environment
   // variable OTEL_TRACE_NETSTANDARD_ENABLED
   if (netstandard_enabled != WStr("1") && netstandard_enabled != WStr("true")) {
-    integration_methods_ = FilterIntegrationsByTargetAssemblyName(
-        integration_methods_, {WStr("netstandard")});
+    //integration_methods_ = FilterIntegrationsByTargetAssemblyName(
+    //    integration_methods_, {WStr("netstandard")});
   }
 
   DWORD event_mask = COR_PRF_MONITOR_JIT_COMPILATION |
@@ -467,24 +481,26 @@ HRESULT STDMETHODCALLTYPE CorProfiler::ModuleLoadFinished(ModuleID module_id,
     }
   }
 
-  std::vector<IntegrationMethod> filtered_integrations =
-      FilterIntegrationsByCaller(integration_methods_, module_info.assembly);
-
-  if (filtered_integrations.empty()) {
+  //std::vector<IntegrationMethod> filtered_integrations =
+  //    FilterIntegrationsByCaller(integration_methods_, module_info.assembly);
+  std::vector<IntegrationMethod> filtered_integrations = {};
+  /*if (filtered_integrations.empty()) {
     // we don't need to instrument anything in this module, skip it
     Debug("ModuleLoadFinished skipping module (filtered by caller): ",
           module_id, " ", module_info.assembly.name);
     return S_OK;
-  }
+  }*/
 
-  std::vector<classMethodFilter> filtered_configs =
-      FilterByClass(yaml_configs, module_info.assembly);
+  std::vector<classMethodFilter> filtered_configs = {};
+  //    FilterByClass(yaml_configs, module_info.assembly);
 
-  if (filtered_configs.empty()) {
+  /*if (filtered_configs.empty()) {
     Debug("YAML: Skipping module by CLASS :", module_id, " ",
           module_info.assembly.name);
     return S_OK;
-  }
+  }*/
+
+  //::cout << "Made it past class check\n";
 
   ComPtr<IUnknown> metadata_interfaces;
   auto hr = this->info_->GetModuleMetaData(module_id, ofRead | ofWrite,
@@ -512,15 +528,15 @@ HRESULT STDMETHODCALLTYPE CorProfiler::ModuleLoadFinished(ModuleID module_id,
   // System.Data or System.Data.Common
   if (module_info.assembly.name != WStr("Microsoft.AspNetCore.Hosting") &&
       module_info.assembly.name != WStr("Dapper")) {
-    filtered_integrations =
-        FilterIntegrationsByTarget(filtered_integrations, assembly_import);
+    //filtered_integrations =
+    //    FilterIntegrationsByTarget(filtered_integrations, assembly_import);
 
-    if (filtered_integrations.empty()) {
+    /*if (filtered_integrations.empty()) {
       // we don't need to instrument anything in this module, skip it
       Debug("ModuleLoadFinished skipping module (filtered by target): ",
             module_id, " ", module_info.assembly.name);
       return S_OK;
-    }
+    }*/
   }
 
   mdModule module;
@@ -760,19 +776,20 @@ HRESULT STDMETHODCALLTYPE CorProfiler::JITCompilationStarted(
   }
 
   // Get valid method replacements for this caller method
-  const auto method_replacements =
-      module_metadata->GetMethodReplacementsForCaller(caller);
+  //const auto method_replacements =
+  //    module_metadata->GetMethodReplacementsForCaller(caller);
+  const std::vector<MethodReplacement> method_replacements = {};
   if (method_replacements.empty()) {
     return S_OK;
   }
   //std::cout << "skipping insertion calls\n";
   // Perform method insertion calls
-  /*hr = ProcessInsertionCalls(module_metadata,
+  hr = ProcessInsertionCalls(module_metadata,
                              function_id,
                              module_id,
                              function_token,
                              caller,
-                             method_replacements);*/
+                             method_replacements);
 
   if (FAILED(hr)) {
     Warn("JITCompilationStarted: Call to ProcessInsertionCalls() failed for ", function_id, " ", module_id, " ", function_token);
@@ -2767,27 +2784,26 @@ size_t CorProfiler::CallTarget_RequestRejitForModule(
   std::vector<ModuleID> vtModules;
   std::vector<mdMethodDef> vtMethodDefs;
 
-  for (const IntegrationMethod& integration : filtered_integrations) {
+  for (const classMethodFilter& filter : m_filtered_configs) {
 
     // If the integration is not for the current assembly we skip.
-    if (integration.replacement.target_method.assembly.name != module_metadata->assemblyName) {
+    /*if (integration.replacement.target_method.assembly.name != module_metadata->assemblyName) {
       continue;
-    }
+    }*/
 
     // If the integration mode is not CallTarget we skip.
-    if (integration.replacement.wrapper_method.action != calltarget_modification_action) {
+    /*if (integration.replacement.wrapper_method.action != calltarget_modification_action) {
       continue;
-    }
-    //std::wcout << integration.replacement.target_method.type_name << "\n";
-    //std::wcout << module_metadata->assemblyName
-    //           << "\n";
-    //std::wcout << module_metadata->assembly_import;
+    }*/
+    
     // We are in the right module, so we try to load the mdTypeDef from the integration target type name.
     mdTypeDef typeDef = mdTypeDefNil;
-    auto hr = metadata_import->FindTypeDefByName(integration.replacement.target_method.type_name.c_str(), mdTokenNil, &typeDef);
+    auto hr = metadata_import->FindTypeDefByName(filter.m_classMatch.includes[0].m_matchValue[0].c_str(), mdTokenNil, &typeDef);
     if (FAILED(hr)) {
       // This can happen between .NET framework and .NET core, not all apis are available in both. Eg: WinHttpHandler, CurlHandler, and some methods in System.Data
-      Debug("Can't load the TypeDef for: ", integration.replacement.target_method.type_name, ", Module: ", module_metadata->assemblyName);
+      Debug("Can't load the TypeDef for: ", filter.m_classMatch.includes[0].m_matchValue[0].c_str(), ", Module: ", module_metadata->assemblyName);
+      //std::wcout << "Typedef failed for "
+      //          << filter.m_classMatch.includes[0].m_matchValue[0] << "\n";
       continue;
     }
 
@@ -2802,10 +2818,11 @@ size_t CorProfiler::CallTarget_RequestRejitForModule(
         [metadata_import](HCORENUM ptr) -> void {
           metadata_import->CloseEnum(ptr);
         });*/
-
+    
     auto enumMethods = Enumerator<mdMethodDef>(
-        [metadata_import, integration, typeDef](HCORENUM* ptr, mdMethodDef arr[], ULONG max, ULONG* cnt) -> HRESULT {
-          return metadata_import->EnumMethodsWithName(ptr, typeDef, integration.replacement.target_method.method_name.c_str(), arr, max, cnt);
+        [metadata_import, filter, typeDef](HCORENUM* ptr, mdMethodDef arr[], ULONG max, ULONG* cnt) -> HRESULT {
+          return metadata_import->EnumMethodsWithName(ptr, typeDef, filter.m_methodMatch.includes[0].m_matchValue[0].c_str(), arr,
+              max, cnt);
         },
         [metadata_import](HCORENUM ptr) -> void {
           metadata_import->CloseEnum(ptr);
@@ -2823,8 +2840,10 @@ size_t CorProfiler::CallTarget_RequestRejitForModule(
         continue;
       }
 
+      std::vector<classMethodFilter> filtered_configs = FilterByClass(yaml_configs, caller.type.name);
+
       std::vector<classMethodFilter> overloads =
-          FilterByMethod(cmf, caller.name);
+          FilterByMethod(filtered_configs, caller.name);
       //std::wcout << overloads.size()
       //          << " " << caller.name << "\n"; 
 
@@ -2839,19 +2858,19 @@ size_t CorProfiler::CallTarget_RequestRejitForModule(
       }
 
       // Compare if the current mdMethodDef contains the same number of arguments as the instrumentation target
-      const auto numOfArgs = functionInfo->method_signature.NumberOfArguments();
+      /*const auto numOfArgs = functionInfo->method_signature.NumberOfArguments();
       if (numOfArgs != integration.replacement.target_method.signature_types.size() - 1) {
         Debug("The caller for the methoddef: ", integration.replacement.target_method.method_name, " doesn't have the right number of arguments.");
         delete functionInfo;
         enumIterator = ++enumIterator;
         continue;
-      }
+      }*/
 
       // Compare each mdMethodDef argument type to the instrumentation target
       bool argumentsMismatch = false;
       const auto methodArguments = functionInfo->method_signature.GetMethodArguments();
-      Debug("Comparing signature for method: ", integration.replacement.target_method.type_name, ".", integration.replacement.target_method.method_name);
-      for (unsigned int i = 0; i < numOfArgs; i++) {
+     //Debug("Comparing signature for method: ", integration.replacement.target_method.type_name, ".", integration.replacement.target_method.method_name);
+      /*for (unsigned int i = 0; i < numOfArgs; i++) {
         const auto argumentTypeName = methodArguments[i].GetTypeTokName(metadata_import);
         const auto integrationArgumentTypeName = integration.replacement.target_method.signature_types[i + 1];
         Debug("  -> ", argumentTypeName, " = ", integrationArgumentTypeName);
@@ -2865,7 +2884,7 @@ size_t CorProfiler::CallTarget_RequestRejitForModule(
         delete functionInfo;
         enumIterator = ++enumIterator;
         continue;
-      }
+      }*/
 
       std::vector<WSTRING> argsList;
       for (auto i : methodArguments)
@@ -2915,6 +2934,7 @@ size_t CorProfiler::CallTarget_RequestRejitForModule(
            ", Method=", caller.name, 
            ", Signature=", caller.signature.str(),
            "]");
+      //std::wcout << "Enqueue for ReJIT - " << caller.type.name << " | " << caller.name << "\n";
       enumIterator = ++enumIterator;
     }
   }
@@ -3085,9 +3105,9 @@ HRESULT CorProfiler::CallTarget_RewriterCallback(RejitHandlerModule* moduleHandl
 
   // *** Load the method arguments to the stack
   unsigned elementType;
-  if (numArgs <= 8) {
+  if (numArgs <= 6) {
     // Load the arguments directly (FastPath)
-    std::cout << "Entering fast path\n";
+    //std::cout << "Entering fast path\n";
     for (int i = 0; i < numArgs; i++) {
       reWriterWrapper.LoadArgument(i + (isStatic ? 0 : 1));
       auto argTypeFlags = methodArguments[i].GetTypeFlags(elementType);
@@ -3176,7 +3196,7 @@ HRESULT CorProfiler::CallTarget_RewriterCallback(RejitHandlerModule* moduleHandl
           &beginCallInstruction));
       break;
     }
-    case 7: {
+    /*case 7: {
       IfFailRet(callTargetTokens->WriteBeginMethodWithArguments(
           &reWriterWrapper, wrapper_type_ref, &caller->type,
           &methodArguments[0], &methodArguments[1], &methodArguments[2],
@@ -3191,7 +3211,7 @@ HRESULT CorProfiler::CallTarget_RewriterCallback(RejitHandlerModule* moduleHandl
           &methodArguments[3], &methodArguments[4], &methodArguments[5],
           &methodArguments[6], &methodArguments[7], &beginCallInstruction));
       break;
-    }
+    }*/
     default: {
       //std::cout << "Inside default case\n";
       IfFailRet(callTargetTokens->WriteBeginMethodWithArgumentsArray(

@@ -7,7 +7,7 @@ namespace trace {
 
 std::vector<classMethodFilter> FilterByClass(
         const std::vector<instrumentationConfig>& all_configs,
-        const AssemblyInfo assembly) {
+        const WSTRING& name) {
   std::vector<classMethodFilter> enabled;
 
   for (auto i : all_configs) {
@@ -15,7 +15,7 @@ std::vector<classMethodFilter> FilterByClass(
       for (auto j : i.m_classMethodFilters) {
         bool check = false;
         for (auto k : j.m_classMatch.includes) {
-          check |= TestRule(k.matchType, k.m_matchValue[0], assembly.name);
+          check |= TestRule(k.matchType, k.m_matchValue[0], name);
         }
         if(check) enabled.push_back(j);
       }
