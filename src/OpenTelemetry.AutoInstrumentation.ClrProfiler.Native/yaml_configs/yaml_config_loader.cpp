@@ -1,6 +1,7 @@
 #include "yaml_config_loader.h"
 
 #include <iostream>
+#include <filesystem>
 
 #include "../environment_variables.h"
 #include "../util.h"
@@ -9,10 +10,21 @@ namespace trace {
 
 std::vector<instrumentationConfig> LoadConfigsFromEnvironment() {
   std::vector<instrumentationConfig> configs;
-  std::vector<WSTRING> filePaths =
-      GetEnvironmentValues(environment::yaml_paths);
+  //std::string yamlDirectory = ToString(GetEnvironmentValues(environment::yaml_paths)[0]);
+  std::string filePath = __FILE__;
+  std::string yamlPath = filePath.substr(0, filePath.size() - 133) +
+                         "conf\\rules\\instrumentation\\test.yaml";
 
-  for (const auto f : filePaths) {
+  std::vector<std::string> yamlPaths;
+
+  for (auto &p : std::filesystem::recursive_directory_iterator(yamlPath)) {
+    if (p.path().extension() == ".yaml") {
+      yamlPaths.push_back(p.path().string());
+      std::cout << p.path().string() << "\n";
+    }
+  }
+
+  for (const auto f : yamlPaths) {
     YAML::Node yamlFile = YAML::LoadFile(ToString(f));
     WSTRING name, type;
     bool disabled;
