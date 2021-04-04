@@ -109,6 +109,9 @@ const WSTRING clr_enable_inlining = WStr("OTEL_CLR_ENABLE_INLINING");
 // Sets whether to enable the CallTarget instrumentation mode
 const WSTRING calltarget_enabled = WStr("OTEL_TRACE_CALLTARGET_ENABLED");
 
+// Sets to inception home path
+const WSTRING inception_home = WStr("INCEPTION_HOME");
+
 }  // namespace environment
 }  // namespace trace
 

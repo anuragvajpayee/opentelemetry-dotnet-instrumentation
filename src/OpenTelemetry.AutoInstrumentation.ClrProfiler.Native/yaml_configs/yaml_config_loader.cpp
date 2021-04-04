@@ -10,12 +10,18 @@ namespace trace {
 
 std::vector<instrumentationConfig> LoadConfigsFromEnvironment() {
   std::vector<instrumentationConfig> configs;
-  //std::string yamlDirectory = ToString(GetEnvironmentValues(environment::yaml_paths)[0]);
-  std::string filePath = __FILE__;
-  std::string yamlPath = filePath.substr(0, filePath.size() - 133) +
-                         "conf\\rules\\instrumentation";
+
+// todo: need proper fix. following was getting compile time path
+//  std::string filePath = __FILE__;
+//  std::string yamlPath = filePath.substr(0, filePath.size() - 133) +
+//                         "conf\\rules\\instrumentation";
+  std::string yamlDirectory =
+      ToString(GetEnvironmentValues(environment::inception_home)[0]);
+  std::string yamlPath = yamlDirectory + "\\conf\\rules\\instrumentation";
+
   std::vector<std::string> yamlPaths;
 
+  std::cout << "Reading yamls from - " + yamlPath;
   for (auto &p : std::filesystem::recursive_directory_iterator(yamlPath)) {
     if (p.path().extension() == ".yaml") {
       yamlPaths.push_back(p.path().string());
