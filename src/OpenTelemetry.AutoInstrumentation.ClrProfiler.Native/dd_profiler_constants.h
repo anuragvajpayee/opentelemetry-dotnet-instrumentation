@@ -36,7 +36,10 @@ inline WSTRING env_vars_to_display[]{
 inline WSTRING skip_assembly_prefixes[]{
     WStr("Datadog.Trace"),
     WStr("Inception"),
-    WStr("OpenTelemetry.AutoInstrumentation"),
+    WStr("OpenTelemetry"),
+    WStr("Jaeger"),
+    WStr("OpenTracing"),
+    WStr("YamlDotNet"),
     WStr("MessagePack"),
     WStr("Microsoft.AI"),
     WStr("Microsoft.ApplicationInsights"),
