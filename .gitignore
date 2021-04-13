@@ -282,3 +282,4 @@ src/Datadog.Trace.ClrProfiler.Native/build/
 
 # ignore blog folder from upstream
 blog/
+/src/OpenTelemetry.AutoInstrumentation.ClrProfiler.Native/OpenTelemetry.AutoInstrumentation.ClrProfiler.Native.vcxproj.filters
