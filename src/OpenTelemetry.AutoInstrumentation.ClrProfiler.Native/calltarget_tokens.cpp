@@ -713,20 +713,23 @@ HRESULT CallTargetTokens::WriteBeginMethodWithoutArguments(
     auto callTargetStateSize =
         CorSigCompressToken(callTargetStateTypeRef, &callTargetStateBuffer);
 
-    auto signatureLength = 6 + callTargetStateSize;
+    auto signatureLength = 8 + callTargetStateSize;
     COR_SIGNATURE signature[signatureBufferSize];
     unsigned offset = 0;
 
-    signature[offset++] = IMAGE_CEE_CS_CALLCONV_GENERIC;
-    signature[offset++] = 0x02;
-    signature[offset++] = 0x01;
+    signature[offset++] = IMAGE_CEE_CS_CALLCONV_GENERIC; // Calling Conventions
+    signature[offset++] = 0x02; // Number of generic arguments
+    signature[offset++] = 0x02; // Number of arguments
 
-    signature[offset++] = ELEMENT_TYPE_VALUETYPE;
+    signature[offset++] = ELEMENT_TYPE_VALUETYPE; // Return Type
     memcpy(&signature[offset], &callTargetStateBuffer, callTargetStateSize);
-    offset += callTargetStateSize;
+    offset += callTargetStateSize; // Compressed token
 
-    signature[offset++] = ELEMENT_TYPE_MVAR;
-    signature[offset++] = 0x01;
+    signature[offset++] = ELEMENT_TYPE_MVAR; // Argument type
+    signature[offset++] = 0x01; // Argument index, 1
+
+    signature[offset++] = ELEMENT_TYPE_STRING;  // Argument type
+    signature[offset++] = 0x02; // Argument index, 2
 
     auto hr = module_metadata->metadata_emit->DefineMemberRef(
         callTargetTypeRef, managed_profiler_calltarget_beginmethod_name.data(),
@@ -797,23 +800,27 @@ HRESULT CallTargetTokens::WriteBeginMethodWithArguments(
     auto callTargetStateSize =
         CorSigCompressToken(callTargetStateTypeRef, &callTargetStateBuffer);
 
-    auto signatureLength = 8 + callTargetStateSize;
+    auto signatureLength = 10 + callTargetStateSize;
     COR_SIGNATURE signature[signatureBufferSize];
     unsigned offset = 0;
 
-    signature[offset++] = IMAGE_CEE_CS_CALLCONV_GENERIC;
-    signature[offset++] = 0x03;
-    signature[offset++] = 0x02;
-
-    signature[offset++] = ELEMENT_TYPE_VALUETYPE;
-    memcpy(&signature[offset], &callTargetStateBuffer, callTargetStateSize);
+    signature[offset++] = IMAGE_CEE_CS_CALLCONV_GENERIC;  // Calling convention
+    signature[offset++] = 0x03;  // Funtion generic arguments count
+    signature[offset++] = 0x03;  // Function arguments count
+    signature[offset++] = ELEMENT_TYPE_VALUETYPE;  // Return type
+    memcpy(&signature[offset], &callTargetStateBuffer,
+           callTargetStateSize);  // Compressed token
     offset += callTargetStateSize;
 
-    signature[offset++] = ELEMENT_TYPE_MVAR;
-    signature[offset++] = 0x01;
+    signature[offset++] = ELEMENT_TYPE_MVAR;  // First argument type
+    signature[offset++] = 0x01;  // Index of this argument. Index 0 will be TIntegration
+                                 // Index 1 is TTarget instance
 
-    signature[offset++] = ELEMENT_TYPE_MVAR;
-    signature[offset++] = 0x02;
+    signature[offset++] = ELEMENT_TYPE_MVAR;  // Second argument type
+    signature[offset++] = 0x02;               // Index of this argument, 2
+
+    signature[offset++] = ELEMENT_TYPE_STRING; //Thrids argument type
+    signature[offset++] = 0x03; // Index of this argument, 3
 
     auto hr = module_metadata->metadata_emit->DefineMemberRef(
         callTargetTypeRef, managed_profiler_calltarget_beginmethod_name.data(),
@@ -892,13 +899,13 @@ HRESULT CallTargetTokens::WriteBeginMethodWithArguments(
     auto callTargetStateSize =
         CorSigCompressToken(callTargetStateTypeRef, &callTargetStateBuffer);
 
-    auto signatureLength = 10 + callTargetStateSize;
+    auto signatureLength = 12 + callTargetStateSize;
     COR_SIGNATURE signature[signatureBufferSize];
     unsigned offset = 0;
 
     signature[offset++] = IMAGE_CEE_CS_CALLCONV_GENERIC;
     signature[offset++] = 0x04;
-    signature[offset++] = 0x03;
+    signature[offset++] = 0x04;
 
     signature[offset++] = ELEMENT_TYPE_VALUETYPE;
     memcpy(&signature[offset], &callTargetStateBuffer, callTargetStateSize);
@@ -912,6 +919,9 @@ HRESULT CallTargetTokens::WriteBeginMethodWithArguments(
 
     signature[offset++] = ELEMENT_TYPE_MVAR;
     signature[offset++] = 0x03;
+
+    signature[offset++] = ELEMENT_TYPE_STRING;  // Argument type
+    signature[offset++] = 0x04;                 // Argument index, 4
 
     auto hr = module_metadata->metadata_emit->DefineMemberRef(
         callTargetTypeRef, managed_profiler_calltarget_beginmethod_name.data(),
@@ -997,13 +1007,13 @@ HRESULT CallTargetTokens::WriteBeginMethodWithArguments(
     auto callTargetStateSize =
         CorSigCompressToken(callTargetStateTypeRef, &callTargetStateBuffer);
 
-    auto signatureLength = 12 + callTargetStateSize;
+    auto signatureLength = 14 + callTargetStateSize;
     COR_SIGNATURE signature[signatureBufferSize];
     unsigned offset = 0;
 
     signature[offset++] = IMAGE_CEE_CS_CALLCONV_GENERIC;
     signature[offset++] = 0x05;
-    signature[offset++] = 0x04;
+    signature[offset++] = 0x05;
 
     signature[offset++] = ELEMENT_TYPE_VALUETYPE;
     memcpy(&signature[offset], &callTargetStateBuffer, callTargetStateSize);
@@ -1020,6 +1030,9 @@ HRESULT CallTargetTokens::WriteBeginMethodWithArguments(
 
     signature[offset++] = ELEMENT_TYPE_MVAR;
     signature[offset++] = 0x04;
+
+    signature[offset++] = ELEMENT_TYPE_STRING;  // Argument type
+    signature[offset++] = 0x05;                 // Argument index, 5
 
     auto hr = module_metadata->metadata_emit->DefineMemberRef(
         callTargetTypeRef, managed_profiler_calltarget_beginmethod_name.data(),
@@ -1112,13 +1125,13 @@ HRESULT CallTargetTokens::WriteBeginMethodWithArguments(
     auto callTargetStateSize =
         CorSigCompressToken(callTargetStateTypeRef, &callTargetStateBuffer);
 
-    auto signatureLength = 14 + callTargetStateSize;
+    auto signatureLength = 16 + callTargetStateSize;
     COR_SIGNATURE signature[signatureBufferSize];
     unsigned offset = 0;
 
     signature[offset++] = IMAGE_CEE_CS_CALLCONV_GENERIC;
     signature[offset++] = 0x06;
-    signature[offset++] = 0x05;
+    signature[offset++] = 0x06;
 
     signature[offset++] = ELEMENT_TYPE_VALUETYPE;
     memcpy(&signature[offset], &callTargetStateBuffer, callTargetStateSize);
@@ -1138,6 +1151,9 @@ HRESULT CallTargetTokens::WriteBeginMethodWithArguments(
 
     signature[offset++] = ELEMENT_TYPE_MVAR;
     signature[offset++] = 0x05;
+
+    signature[offset++] = ELEMENT_TYPE_STRING;  // Argument type
+    signature[offset++] = 0x06;                 // Argument index, 6
 
     auto hr = module_metadata->metadata_emit->DefineMemberRef(
         callTargetTypeRef, managed_profiler_calltarget_beginmethod_name.data(),
@@ -1237,13 +1253,13 @@ HRESULT CallTargetTokens::WriteBeginMethodWithArguments(
     auto callTargetStateSize =
         CorSigCompressToken(callTargetStateTypeRef, &callTargetStateBuffer);
 
-    auto signatureLength = 16 + callTargetStateSize;
+    auto signatureLength = 18 + callTargetStateSize;
     COR_SIGNATURE signature[signatureBufferSize];
     unsigned offset = 0;
 
     signature[offset++] = IMAGE_CEE_CS_CALLCONV_GENERIC;
     signature[offset++] = 0x07;
-    signature[offset++] = 0x06;
+    signature[offset++] = 0x07;
 
     signature[offset++] = ELEMENT_TYPE_VALUETYPE;
     memcpy(&signature[offset], &callTargetStateBuffer, callTargetStateSize);
@@ -1266,6 +1282,9 @@ HRESULT CallTargetTokens::WriteBeginMethodWithArguments(
 
     signature[offset++] = ELEMENT_TYPE_MVAR;
     signature[offset++] = 0x06;
+
+    signature[offset++] = ELEMENT_TYPE_STRING;  // Argument type
+    signature[offset++] = 0x07;                 // Argument index, 7
 
     auto hr = module_metadata->metadata_emit->DefineMemberRef(
         callTargetTypeRef, managed_profiler_calltarget_beginmethod_name.data(),
@@ -1372,13 +1391,13 @@ HRESULT CallTargetTokens::WriteBeginMethodWithArguments(
     auto callTargetStateSize =
         CorSigCompressToken(callTargetStateTypeRef, &callTargetStateBuffer);
 
-    auto signatureLength = 18 + callTargetStateSize;
+    auto signatureLength = 20 + callTargetStateSize;
     COR_SIGNATURE signature[signatureBufferSize];
     unsigned offset = 0;
 
     signature[offset++] = IMAGE_CEE_CS_CALLCONV_GENERIC;
     signature[offset++] = 0x08;
-    signature[offset++] = 0x07;
+    signature[offset++] = 0x08;
 
     signature[offset++] = ELEMENT_TYPE_VALUETYPE;
     memcpy(&signature[offset], &callTargetStateBuffer, callTargetStateSize);
@@ -1404,6 +1423,9 @@ HRESULT CallTargetTokens::WriteBeginMethodWithArguments(
 
     signature[offset++] = ELEMENT_TYPE_MVAR;
     signature[offset++] = 0x07;
+
+    signature[offset++] = ELEMENT_TYPE_STRING;  // Argument type
+    signature[offset++] = 0x08;                 // Argument index, 8
 
     auto hr = module_metadata->metadata_emit->DefineMemberRef(
         callTargetTypeRef, managed_profiler_calltarget_beginmethod_name.data(),
@@ -1831,13 +1853,13 @@ HRESULT CallTargetTokens::WriteBeginMethodWithArgumentsArray(
     auto callTargetStateSize =
         CorSigCompressToken(callTargetStateTypeRef, &callTargetStateBuffer);
 
-    auto signatureLength = 8 + callTargetStateSize;
+    auto signatureLength = 10 + callTargetStateSize;
     COR_SIGNATURE signature[signatureBufferSize];
     unsigned offset = 0;
 
     signature[offset++] = IMAGE_CEE_CS_CALLCONV_GENERIC;
     signature[offset++] = 0x02;
-    signature[offset++] = 0x02;
+    signature[offset++] = 0x03;
 
     signature[offset++] = ELEMENT_TYPE_VALUETYPE;
     memcpy(&signature[offset], &callTargetStateBuffer, callTargetStateSize);
@@ -1848,6 +1870,9 @@ HRESULT CallTargetTokens::WriteBeginMethodWithArgumentsArray(
 
     signature[offset++] = ELEMENT_TYPE_SZARRAY;
     signature[offset++] = ELEMENT_TYPE_OBJECT;
+
+    signature[offset++] = ELEMENT_TYPE_STRING;  // Argument type
+    signature[offset++] = 0x03;                 // Argument index, 3
 
     auto hr = module_metadata->metadata_emit->DefineMemberRef(
         callTargetTypeRef, managed_profiler_calltarget_beginmethod_name.data(),

@@ -28,6 +28,14 @@ void ILRewriterWrapper::LoadInt64(const INT64 value) const {
   m_ILRewriter->InsertBefore(m_ILInstr, pNewInstr);
 }
 
+void ILRewriterWrapper::LoadStr(const mdString value) const {
+  ILInstr* pNewInstr = m_ILRewriter->NewILInstr();
+  pNewInstr->m_opcode = CEE_LDSTR;
+  // pNewInstr->stringIdToken = value;
+  memcpy(pNewInstr->stringIdToken, (void*)&value, sizeof(value));
+  m_ILRewriter->InsertBefore(m_ILInstr, pNewInstr);
+}
+
 void ILRewriterWrapper::LoadInt32(const INT32 value) const {
   static const std::vector<OPCODE> opcodes = {
       CEE_LDC_I4_0, CEE_LDC_I4_1, CEE_LDC_I4_2, CEE_LDC_I4_3, CEE_LDC_I4_4,

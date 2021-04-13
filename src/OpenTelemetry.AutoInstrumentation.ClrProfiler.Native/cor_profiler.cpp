@@ -2898,10 +2898,14 @@ size_t CorProfiler::CallTarget_RequestRejitForModule(
       for (auto i : methodArguments)
         argsList.push_back(i.GetTypeTokName(metadata_import));
 
+      std::wstring filters;
+
       wrapper theWrapper(L"NULL", L"NULL", L"NULL", L"NULL", L"NULL");
       for (auto i : overloads) {
         if (CheckForOverload(i, argsList, caller.name)) {
           theWrapper = i.m_wrapper;
+          if (!filters.empty()) filters.append(L",");
+          filters.append(i.m_id);
         }
       }
 
@@ -2910,7 +2914,7 @@ size_t CorProfiler::CallTarget_RequestRejitForModule(
         continue;
       }
       //std::wcout << "wrapper found - " << theWrapper.assembly << "for " << caller.name << "\n";
-
+      
       if (theWrapper.assembly == L"") {
         //std::cout << "switching to default\n";
         theWrapper.assembly = L"Inception.ClrProfiler.Managed, Version=1.0.0.0, Culture=neutral, PublicKeyToken=d1cede69117c04c0";
@@ -2923,6 +2927,8 @@ size_t CorProfiler::CallTarget_RequestRejitForModule(
       MethodReference wrapper_method(theWrapper.assembly, theWrapper.type, L"",
                                      theWrapper.action, Version(), Version(),
                                      {}, {});
+
+      AddFilterIDToConfigCache(caller.id, filters);
 
       // As we are in the right method, we gather all information we need and stored it in to the ReJIT handler.
       auto moduleHandler = rejit_handler->GetOrAddModule(module_id);
@@ -3034,7 +3040,7 @@ HRESULT CorProfiler::CallTarget_RewriterCallback(RejitHandlerModule* moduleHandl
   mdMemberRef wrapper_method_ref = mdMemberRefNil;
   mdTypeRef wrapper_type_ref = mdTypeRefNil;
   GetWrapperMethodRef(module_metadata, module_id, *method_replacement, wrapper_method_ref, wrapper_type_ref);
-
+  
   Debug("*** CallTarget_RewriterCallback() Start: ", caller->type.name, ".", caller->name, 
        "() [IsVoid=", isVoid, 
        ", IsStatic=", isStatic, 
@@ -3118,6 +3124,16 @@ HRESULT CorProfiler::CallTarget_RewriterCallback(RejitHandlerModule* moduleHandl
     }
   }
 
+  //Retrieve the filterID for this function from the map
+  std::wstring wfilterID = GetFilterIDFromConfigCache(function_token);
+  LPCWSTR filterID = wfilterID.c_str();
+  mdString filterID_token;
+  if (module_metadata->metadata_emit->DefineUserString(
+      filterID, (ULONG)wcslen(filterID), &filterID_token) < 0) {
+    Warn("DefineUserStringFailed for filterID");
+    return E_FAIL;
+  }
+
   // *** Load the method arguments to the stack
   unsigned elementType;
   if (numArgs <= 6) {
@@ -3133,6 +3149,7 @@ HRESULT CorProfiler::CallTarget_RewriterCallback(RejitHandlerModule* moduleHandl
         return E_FAIL;
       }
     }
+    reWriterWrapper.LoadStr(filterID_token);
   } else {
     // Load the arguments inside an object array (SlowPath)
     //std::cout << "Entering slow path\n";
@@ -3157,6 +3174,7 @@ HRESULT CorProfiler::CallTarget_RewriterCallback(RejitHandlerModule* moduleHandl
       }
       reWriterWrapper.EndLoadValueIntoArray();
     }
+    reWriterWrapper.LoadStr(filterID_token);
   }
 
   // *** Emit BeginMethod call

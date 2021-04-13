@@ -12,17 +12,9 @@ namespace trace {
 
 std::vector<instrumentationConfig> LoadConfigsFromEnvironment();
 
-namespace {
+std::wstring GetFilterIDFromConfigCache(mdToken key);
 
-std::pair<classMethodFilter, bool> FilterFromYaml(const YAML::Node& src);
-std::pair<classMatch, bool> ClassMatchFromYaml(const YAML::Node& src);
-std::pair<methodMatch, bool> MethodMatchFromYaml(const YAML::Node& src);
-std::pair<classMatchRule, bool> ClassMatchRuleFromYaml(const YAML::Node& src);
-std::pair<methodMatchRule, bool> MethodMatchRuleFromYaml(const YAML::Node& src);
-wrapper WrapperFromYaml(const YAML::Node& src);
-
-}  // namespace
-
+void AddFilterIDToConfigCache(mdToken key, std::wstring value);
 }  // namespace trace
 
 #endif  // !INCEPTION_CLR_PROFILER_YAML_CONFIG_LOADER_H
