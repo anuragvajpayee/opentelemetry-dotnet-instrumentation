@@ -1311,7 +1311,7 @@ WSTRING GetSigTypeTokName(PCCOR_SIGNATURE& pbCur, const ComPtr<IMetaDataImport2>
   return tokenName;
 }
 
-WSTRING FunctionMethodArgument::GetTypeTokName(ComPtr<IMetaDataImport2>& pImport) const {
+WSTRING FunctionMethodArgument::GetTypeTokName(const ComPtr<IMetaDataImport2>& pImport) const {
   PCCOR_SIGNATURE pbCur = &pbBase[offset];
   return GetSigTypeTokName(pbCur, pImport);
 }

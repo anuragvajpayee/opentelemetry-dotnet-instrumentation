@@ -53,11 +53,11 @@ std::pair<methodMatchRule, bool> MethodMatchRuleFromYaml(
 }
 
 wrapper WrapperFromYaml(const YAML::Node& src) {
-  WSTRING assembly = L"DEFAULT";
-  WSTRING type = L"DEFAULT";
-  WSTRING method = L"DEFAULT";
-  WSTRING signature = L"DEFAULT";
-  WSTRING action = L"DEFAULT";
+  WSTRING assembly;
+  WSTRING type;
+  WSTRING method;
+  WSTRING signature;
+  WSTRING action;
 
   // std::cout << src;
 

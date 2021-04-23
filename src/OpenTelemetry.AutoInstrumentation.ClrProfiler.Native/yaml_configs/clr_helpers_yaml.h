@@ -4,22 +4,22 @@
 
 namespace trace {
 
-std::vector<classMethodFilter> FilterByClass(
-    const std::vector<instrumentationConfig>& all_configs,
-    const WSTRING& name);
+struct ValidIntegration {
+  ValidIntegration() {}
+  ValidIntegration(mdMethodDef methodToken, wrapper integrationWrapper,
+                   std::wstring filterIDs)
+      : methodDef(methodToken),
+        wrapperMethod(integrationWrapper),
+        filters(filterIDs) {}
+  mdMethodDef methodDef;
+  wrapper wrapperMethod;
+  std::wstring filters;
+};
 
-std::vector<classMethodFilter> FilterByMethod(
-    const std::vector<classMethodFilter>& filted_cmf,
-    const WSTRING& methodName);
+bool TestRule(const WSTRING&, const std::vector<WSTRING>&, const WSTRING&);
 
-bool TestRule(const WSTRING&, const WSTRING&, const WSTRING&);
-bool CheckForOverload(const classMethodFilter& cmf,
-                      const std::vector<WSTRING>& MethodArgs,
-                      WSTRING functionName);
-
-bool TestParameters(const std::vector<WSTRING>& MethodArgs, methodMatchRule m);
-
-bool StartsWith(const WSTRING&, const WSTRING&);
-bool EndsWith(const WSTRING&, const WSTRING&);
-bool MatchesRegex(const WSTRING&, const WSTRING&);
+std::pair<std::vector<ValidIntegration>, bool> QualifyRules(
+    wchar_t*, wchar_t*, const std::vector<std::wstring>&,
+    const std::vector<FunctionInfo>&, const std::vector<instrumentationConfig>&,
+    const ComPtr<IMetaDataImport2>& metadata_import);
 } // namespace trace

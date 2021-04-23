@@ -331,7 +331,7 @@ struct FunctionMethodArgument {
   PCCOR_SIGNATURE pbBase;
   mdToken GetTypeTok(ComPtr<IMetaDataEmit2>& pEmit,
                      mdAssemblyRef corLibRef) const;
-  WSTRING GetTypeTokName(ComPtr<IMetaDataImport2>& pImport) const;
+  WSTRING GetTypeTokName(const ComPtr<IMetaDataImport2>& pImport) const;
   int GetTypeFlags(unsigned& elementType) const;
   ULONG GetSignature(PCCOR_SIGNATURE& data) const;
 };

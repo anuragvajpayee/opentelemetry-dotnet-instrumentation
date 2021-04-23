@@ -17,6 +17,7 @@
 #include "il_rewriter.h"
 #include "rejit_handler.h"
 #include "yaml_configs/yaml_config.h"
+#include "yaml_configs/clr_helpers_yaml.h"
 
 namespace trace {
 
@@ -99,8 +100,7 @@ class CorProfiler : public CorProfilerBase {
   //
   size_t CallTarget_RequestRejitForModule(
     ModuleID module_id, ModuleMetadata* module_metadata,
-      const std::vector<IntegrationMethod>& filtered_integrations,
-      const std::vector<classMethodFilter>& cmf);
+      const std::vector<ValidIntegration>& valid_integrations);
   HRESULT CallTarget_RewriterCallback(RejitHandlerModule* moduleHandler, RejitHandlerModuleMethod* methodHandler);
 
  public:

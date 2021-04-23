@@ -2,6 +2,7 @@
 
 #include <corprof.h>
 #include <string>
+#include <unordered_map>
 #include "corhlpr.h"
 
 #include "version.h"
@@ -12,7 +13,6 @@
 #include "il_rewriter.h"
 #include "il_rewriter_wrapper.h"
 #include "integration_loader.h"
-#include "yaml_configs/yaml_config_loader.h"
 #include "logging.h"
 #include "metadata_builder.h"
 #include "module_metadata.h"
@@ -20,7 +20,8 @@
 #include "sig_helpers.h"
 #include "resource.h"
 #include "util.h"
-#include "yaml_configs/clr_helpers_yaml.h"
+#include "yaml_configs/yaml_config_loader.h"
+
 
 #ifdef MACOS
 #include <mach-o/getsect.h>
@@ -375,6 +376,65 @@ HRESULT STDMETHODCALLTYPE CorProfiler::AssemblyLoadFinished(AssemblyID assembly_
   return S_OK;
 }
 
+std::vector<FunctionInfo> GetMethodsInType(const ComPtr<IMetaDataImport2> &metadata_import, const mdTypeDef &typeDef) {
+  // Iterating over methods in given type
+  std::vector<FunctionInfo> results;
+
+  auto enumTypes = Enumerator<mdMethodDef>(
+      [metadata_import, typeDef](HCORENUM* ptr, mdMethodDef arr[], ULONG max,
+                        ULONG* cnt) -> HRESULT {
+        return metadata_import->EnumMethods(ptr, typeDef, arr, max, cnt);
+      },
+      [metadata_import](HCORENUM ptr) -> void {
+        metadata_import->CloseEnum(ptr);
+      });
+
+  auto enumIterator = enumTypes.begin();
+  while (enumIterator != enumTypes.end()) {
+    mdMethodDef methodToken = *enumIterator;
+    FunctionInfo functionInfo = GetFunctionInfo(metadata_import, methodToken);
+    results.push_back(functionInfo);
+    enumIterator = ++enumIterator;
+  }
+
+  return results;
+}
+
+std::vector<std::wstring> GetInterfacesInType(const ComPtr<IMetaDataImport2>& metadata_import, const mdTypeDef& typeDef) {
+  std::vector<std::wstring> results;
+  mdToken interfaceToken;
+  wchar_t interfaceNameBuffer[255];
+
+  auto enumTypes = Enumerator<mdInterfaceImpl>(
+      [metadata_import, typeDef](HCORENUM* ptr, mdInterfaceImpl arr[],
+                                 ULONG max,
+                                 ULONG* cnt) -> HRESULT {
+        return metadata_import->EnumInterfaceImpls(ptr, typeDef, arr, max, cnt);     
+      },
+      [metadata_import](HCORENUM ptr) -> void {
+        metadata_import->CloseEnum(ptr);
+      }
+      );
+
+  auto enumIterator = enumTypes.begin();
+  while (enumIterator != enumTypes.end()) {
+      mdInterfaceImpl interToken = *enumIterator;
+      
+      HRESULT hr = metadata_import->GetInterfaceImplProps(interToken, NULL,
+                                                          &interfaceToken);
+      if (hr == S_OK) {
+        hr = metadata_import->GetTypeDefProps(
+            interfaceToken, interfaceNameBuffer, 255, NULL, NULL, NULL);
+        if (hr == S_OK) {
+          std::wstring w(interfaceNameBuffer);
+          results.push_back(w);
+        }
+      }
+      enumIterator = ++enumIterator;
+  }
+  return results;
+}
+
 HRESULT STDMETHODCALLTYPE CorProfiler::ModuleLoadFinished(ModuleID module_id,
                                                           HRESULT hr_status)  {
   if (FAILED(hr_status)) {
@@ -425,7 +485,7 @@ HRESULT STDMETHODCALLTYPE CorProfiler::ModuleLoadFinished(ModuleID module_id,
     // managed assembly
     const auto assembly_import = metadata_interfaces.As<IMetaDataAssemblyImport>(IID_IMetaDataAssemblyImport);
     const auto assembly_metadata = GetAssemblyImportMetadata(assembly_import);
-
+    
     hr = assembly_import->GetAssemblyProps(
         assembly_metadata.assembly_token, &corAssemblyProperty.ppbPublicKey,
         &corAssemblyProperty.pcbPublicKey, &corAssemblyProperty.pulHashAlgId,
@@ -451,7 +511,7 @@ HRESULT STDMETHODCALLTYPE CorProfiler::ModuleLoadFinished(ModuleID module_id,
   // byte array will be loaded into a non-shared AppDomain.
   // In this case, do not insert another startup hook into that non-shared AppDomain
   if (module_info.assembly.name == WStr("Datadog.Trace.ClrProfiler.Managed.Loader")) {
-    Info("ModuleLoadFinished: Inception.ClrProfiler.Managed.Loader loaded into AppDomain ",
+    Info("ModuleLoadFinished: Datadog.Trace.ClrProfiler.Managed.Loader loaded into AppDomain ",
           app_domain_id, " ", module_info.assembly.app_domain_name);
     first_jit_compilation_app_domains.insert(app_domain_id);
     //std::cout << first_jit_compilation_app_domains.size() << "\n";
@@ -523,22 +583,66 @@ HRESULT STDMETHODCALLTYPE CorProfiler::ModuleLoadFinished(ModuleID module_id,
   const auto assembly_emit =
       metadata_interfaces.As<IMetaDataAssemblyEmit>(IID_IMetaDataAssemblyEmit);
 
+  std::vector<ValidIntegration> valid_integrations; // All valid integrations for this module will be stored here
+
   // don't skip Microsoft.AspNetCore.Hosting so we can run the startup hook and
   // subscribe to DiagnosticSource events.
   // don't skip Dapper: it makes ADO.NET calls even though it doesn't reference
   // System.Data or System.Data.Common
   if (module_info.assembly.name != WStr("Microsoft.AspNetCore.Hosting") &&
       module_info.assembly.name != WStr("Dapper")) {
-    //filtered_integrations =
-    //    FilterIntegrationsByTarget(filtered_integrations, assembly_import);
+      
+      // Enumerate all classes in this module :-
+      wchar_t typeDefNameBuffer[255],   // Stores class name
+      parentClassNameBuffer[255];       // Stores parent class name
+      mdTypeDef tkExtends;              // Token representing parent class
 
-    /*if (filtered_integrations.empty()) {
-      // we don't need to instrument anything in this module, skip it
-      Debug("ModuleLoadFinished skipping module (filtered by target): ",
-            module_id, " ", module_info.assembly.name);
-      return S_OK;
-    }*/
-  }
+      auto enumTypes = Enumerator<mdTypeDef>(
+          [metadata_import](HCORENUM* ptr, mdTypeDef arr[], ULONG max, ULONG* cnt) -> HRESULT {
+              return metadata_import->EnumTypeDefs(ptr, arr, max, cnt);
+          },
+          [metadata_import](HCORENUM ptr) -> void {
+              metadata_import->CloseEnum(ptr);
+          });
+
+      auto enumIterator = enumTypes.begin();
+      while (enumIterator != enumTypes.end()) {  // Iterate over types
+        std::vector<FunctionInfo>
+            methods;  // Stores tokens for all methods in this class
+        std::vector<std::wstring>
+            interfaces;  // Stores interfaces for this class
+        auto type = *enumIterator;
+
+        metadata_import->GetTypeDefProps(type, typeDefNameBuffer, 255, NULL,
+                                         NULL, &tkExtends);  // Get class name
+        HRESULT hr_superClass = metadata_import->GetTypeDefProps(
+            tkExtends, parentClassNameBuffer, 255, NULL, NULL,
+            NULL);  // Get parent class name
+
+        if (hr_superClass != S_OK) wcscpy(parentClassNameBuffer, L"");
+
+        methods = GetMethodsInType(metadata_import, type);
+        interfaces = GetInterfacesInType(metadata_import, type);
+        // We've collected class name, parent class name, list of member
+        // functions, and list of interfaces Using this to qualify classMatch
+        // rules and methodMatch rules from YAML configs
+        std::pair<std::vector<ValidIntegration>, bool> result =
+            QualifyRules(typeDefNameBuffer, parentClassNameBuffer, interfaces,
+                         methods, yaml_configs, metadata_import);
+
+        if (result.second) {
+          valid_integrations.insert(valid_integrations.end(),
+                                    result.first.begin(), result.first.end());
+        }
+        enumIterator = ++enumIterator;
+      }
+
+      if (valid_integrations.size() == 0) {
+        Warn("ModuleLoadFinished: No valid integrations found in for module ",
+             module_id, " ", typeDefNameBuffer);
+        return S_OK;
+      }     
+  }  
 
   mdModule module;
   hr = metadata_import->GetModuleFromScope(&module);
@@ -547,7 +651,7 @@ HRESULT STDMETHODCALLTYPE CorProfiler::ModuleLoadFinished(ModuleID module_id,
          module_id, " ", module_info.assembly.name);
     return S_OK;
   }
-
+  
   GUID module_version_id;
   hr = metadata_import->GetScopeProps(nullptr, 0, nullptr, &module_version_id);
   if (FAILED(hr)) {
@@ -573,8 +677,7 @@ HRESULT STDMETHODCALLTYPE CorProfiler::ModuleLoadFinished(ModuleID module_id,
 
   // We call the function to analyze the module and request the ReJIT of integrations defined in this module.
   if (IsCallTargetEnabled()) {
-    CallTarget_RequestRejitForModule(module_id, module_metadata,
-                                     filtered_integrations, filtered_configs);
+    CallTarget_RequestRejitForModule(module_id, module_metadata, valid_integrations);
   }
 
   return S_OK;
@@ -2779,185 +2882,77 @@ HRESULT STDMETHODCALLTYPE CorProfiler::ReJITError(ModuleID moduleId, mdMethodDef
 /// <returns>Number of ReJIT requests made</returns>
 size_t CorProfiler::CallTarget_RequestRejitForModule(
     ModuleID module_id, ModuleMetadata* module_metadata,
-    const std::vector<IntegrationMethod>& filtered_integrations,
-    const std::vector<classMethodFilter>& cmf) {
+    const std::vector<ValidIntegration>& valid_integrations) {
   auto metadata_import = module_metadata->metadata_import;
   std::vector<ModuleID> vtModules;
   std::vector<mdMethodDef> vtMethodDefs;
   
-  for (const classMethodFilter& filter : m_filtered_configs) {
-
-    // If the integration is not for the current assembly we skip.
-    /*if (integration.replacement.target_method.assembly.name != module_metadata->assemblyName) {
+  for (const ValidIntegration& integration : valid_integrations) {
+    if (integration.wrapperMethod.action != L"DEFAULT" &&
+        integration.wrapperMethod.action != L"CallTargetModification")
       continue;
-    }*/
 
-    // If the integration mode is not CallTarget we skip.
-    /*if (integration.replacement.wrapper_method.action != calltarget_modification_action) {
+    // Extract the function info from the mdMethodDef
+    const auto caller = GetFunctionInfo(module_metadata->metadata_import,
+                                        integration.methodDef);
+    if (!caller.IsValid()) {
+      Warn("The caller for the methoddef: ", TokenStr(&integration.methodDef),
+           " is not valid!");
       continue;
-    }*/
-    
-    // We are in the right module, so we try to load the mdTypeDef from the integration target type name.
-    mdTypeDef typeDef = mdTypeDefNil;
-    auto hr = metadata_import->FindTypeDefByName(filter.m_classMatch.includes[0].m_matchValue[0].c_str(), mdTokenNil, &typeDef);
+    }
+
+    // We create a new function info into the heap from the caller functionInfo in the stack, to be used later in the ReJIT process
+    auto functionInfo = new FunctionInfo(caller);
+    HRESULT hr = functionInfo->method_signature.TryParse();
     if (FAILED(hr)) {
-      // This can happen between .NET framework and .NET core, not all apis are available in both. Eg: WinHttpHandler, CurlHandler, and some methods in System.Data
-      Debug("Can't load the TypeDef for: ", filter.m_classMatch.includes[0].m_matchValue[0].c_str(), ", Module: ", module_metadata->assemblyName);
-      //std::wcout << "Typedef failed for "
-      //          << filter.m_classMatch.includes[0].m_matchValue[0] << "\n";
+      Warn("The method signature: ", functionInfo->method_signature.str(),
+           " cannot be parsed.");
+      delete functionInfo;
       continue;
     }
 
-    //std::wcout << "* - " << integration.replacement.target_method.method_name
-    //           << "\n";
+    // Compare each mdMethodDef argument type to the instrumentation target
+    wrapper theWrapper = integration.wrapperMethod;
 
-    // Now we enumerate all methods with the same target method name. (All overloads of the method)
-    /*auto enumMethods = Enumerator<mdMethodDef>(
-        [metadata_import, integration, typeDef](HCORENUM* ptr, mdMethodDef arr[], ULONG max, ULONG* cnt) -> HRESULT {
-          return metadata_import->EnumMethodsWithName(ptr, typeDef, integration.replacement.target_method.method_name.c_str(), arr, max, cnt);
-        },
-        [metadata_import](HCORENUM ptr) -> void {
-          metadata_import->CloseEnum(ptr);
-        });*/
-    
-    auto enumMethods = Enumerator<mdMethodDef>(
-        [metadata_import, filter, typeDef](HCORENUM* ptr, mdMethodDef arr[], ULONG max, ULONG* cnt) -> HRESULT {
-          return metadata_import->EnumMethodsWithName(ptr, typeDef, filter.m_methodMatch.includes[0].m_matchValue[0].c_str(), arr,
-              max, cnt);
-        },
-        [metadata_import](HCORENUM ptr) -> void {
-          metadata_import->CloseEnum(ptr);
-        });
-
-    auto enumIterator = enumMethods.begin();
-    while (enumIterator != enumMethods.end()) {
-      auto methodDef = *enumIterator;
-
-      // Extract the function info from the mdMethodDef
-      const auto caller = GetFunctionInfo(module_metadata->metadata_import, methodDef);
-      if (!caller.IsValid()) {
-        Warn("The caller for the methoddef: ", TokenStr(&methodDef), " is not valid!");
-        enumIterator = ++enumIterator;
-        continue;
-      }
-
-      std::vector<classMethodFilter> filtered_configs = FilterByClass(yaml_configs, caller.type.name);
-      if (filtered_configs.size() == 0) {
-        enumIterator = ++enumIterator;
-        continue;      
-      }
-
-      std::vector<classMethodFilter> overloads =
-          FilterByMethod(filtered_configs, caller.name);
-      if (overloads.size() == 0) {
-        enumIterator = ++enumIterator;
-        continue;
-      }
-      //std::wcout << overloads.size()
-      //          << " " << caller.name << "\n"; 
-
-      // We create a new function info into the heap from the caller functionInfo in the stack, to be used later in the ReJIT process
-      auto functionInfo = new FunctionInfo(caller);
-      hr = functionInfo->method_signature.TryParse();
-      if (FAILED(hr)) {
-        Warn("The method signature: ", functionInfo->method_signature.str(), " cannot be parsed.");
-        delete functionInfo;
-        enumIterator = ++enumIterator;
-        continue;
-      }
-
-      // Compare if the current mdMethodDef contains the same number of arguments as the instrumentation target
-      /*const auto numOfArgs = functionInfo->method_signature.NumberOfArguments();
-      if (numOfArgs != integration.replacement.target_method.signature_types.size() - 1) {
-        Debug("The caller for the methoddef: ", integration.replacement.target_method.method_name, " doesn't have the right number of arguments.");
-        delete functionInfo;
-        enumIterator = ++enumIterator;
-        continue;
-      }*/
-
-      // Compare each mdMethodDef argument type to the instrumentation target
-      bool argumentsMismatch = false;
-      const auto methodArguments = functionInfo->method_signature.GetMethodArguments();
-     //Debug("Comparing signature for method: ", integration.replacement.target_method.type_name, ".", integration.replacement.target_method.method_name);
-      /*for (unsigned int i = 0; i < numOfArgs; i++) {
-        const auto argumentTypeName = methodArguments[i].GetTypeTokName(metadata_import);
-        const auto integrationArgumentTypeName = integration.replacement.target_method.signature_types[i + 1];
-        Debug("  -> ", argumentTypeName, " = ", integrationArgumentTypeName);
-        if (argumentTypeName != integrationArgumentTypeName && integrationArgumentTypeName != WStr("_")) {
-          argumentsMismatch = true;
-          break;
-        }
-      }
-      if (argumentsMismatch) {
-        Debug("The caller for the methoddef: ", integration.replacement.target_method.method_name, " doesn't have the right type of arguments.");
-        delete functionInfo;
-        enumIterator = ++enumIterator;
-        continue;
-      }*/
-      std::vector<WSTRING> argsList;
-      for (auto i : methodArguments)
-        argsList.push_back(i.GetTypeTokName(metadata_import));
-
-      std::wstring filters;
-
-      wrapper theWrapper(L"NULL", L"NULL", L"NULL", L"NULL", L"NULL");
-      for (auto i : overloads) {
-        if (CheckForOverload(i, argsList, caller.name)) {
-          theWrapper = i.m_wrapper;
-          if (!filters.empty()) filters.append(L",");
-          filters.append(i.m_id);
-        }
-      }
-
-      if (theWrapper.assembly == L"NULL") {
-        enumIterator = ++enumIterator;
-        continue;
-      }
-      //std::wcout << "wrapper found - " << theWrapper.assembly << "for " << caller.name << "\n";
-      
-      if (theWrapper.assembly == L"") {
-        //std::cout << "switching to default\n";
-        theWrapper.assembly = L"Inception.ClrProfiler.Managed, Version=1.0.0.0, Culture=neutral, PublicKeyToken=d1cede69117c04c0";
-        theWrapper.type = L"Inception.ClrProfiler.AutoInstrumentation.Custom.CustomIntegrations";
-        theWrapper.action = L"CallTargetModification";
-      }
-
-      MethodReference caller_method;
-      MethodReference target_method;
-      MethodReference wrapper_method(theWrapper.assembly, theWrapper.type, L"",
-                                     theWrapper.action, Version(), Version(),
-                                     {}, {});
-
-      AddFilterIDToConfigCache(caller.id, filters);
-
-      // As we are in the right method, we gather all information we need and stored it in to the ReJIT handler.
-      auto moduleHandler = rejit_handler->GetOrAddModule(module_id);
-      moduleHandler->SetModuleMetadata(module_metadata);
-      auto methodHandler = moduleHandler->GetOrAddMethod(methodDef);
-      methodHandler->SetFunctionInfo(functionInfo);
-      methodHandler->SetMethodReplacement(
-          new MethodReplacement(caller_method, target_method, wrapper_method));
-      //std::wcout << integration.replacement.wrapper_method.type_name
-      //           << "\n";
-
-      // Store module_id and methodDef to request the ReJIT after analyzing all integrations.
-      vtModules.push_back(module_id);
-      vtMethodDefs.push_back(methodDef);
-      
-      bool caller_assembly_is_domain_neutral = runtime_information_.is_desktop() && corlib_module_loaded && module_metadata->app_domain_id == corlib_app_domain_id;
-
-      Info("Enqueue for ReJIT [ModuleId=", module_id,
-           ", MethodDef=", TokenStr(&methodDef), 
-           ", AppDomainId=", module_metadata->app_domain_id,
-           ", IsDomainNeutral=", caller_assembly_is_domain_neutral,
-           ", Assembly=", module_metadata->assemblyName, 
-           ", Type=", caller.type.name, 
-           ", Method=", caller.name, 
-           ", Signature=", caller.signature.str(),
-           "]");
-      //std::wcout << "Enqueue for ReJIT - " << caller.type.name << " | " << caller.name << "\n";
-      enumIterator = ++enumIterator;
+    if (theWrapper.assembly == L"DEFAULT") {
+      // std::cout << "switching to default\n";
+      theWrapper.assembly =
+          L"Inception.ClrProfiler.Managed, Version=1.0.0.0, Culture=neutral, "
+          L"PublicKeyToken=d1cede69117c04c0";
+      theWrapper.type =
+          L"Inception.ClrProfiler.AutoInstrumentation.Custom."
+          L"CustomIntegrations";
+      theWrapper.action = L"CallTargetModification";
     }
+
+    MethodReference caller_method;
+    MethodReference target_method;
+    MethodReference wrapper_method(theWrapper.assembly, theWrapper.type, L"",
+                                   theWrapper.action, Version(), Version(), {},
+                                   {});
+
+    AddFilterIDToConfigCache(caller.id, integration.filters);
+
+    // As we are in the right method, we gather all information we need and stored it in to the ReJIT handler.
+    auto moduleHandler = rejit_handler->GetOrAddModule(module_id);
+    moduleHandler->SetModuleMetadata(module_metadata);
+    auto methodHandler = moduleHandler->GetOrAddMethod(integration.methodDef);
+    methodHandler->SetFunctionInfo(functionInfo);
+    methodHandler->SetMethodReplacement(
+        new MethodReplacement(caller_method, target_method, wrapper_method));
+
+    vtModules.push_back(module_id);
+    vtMethodDefs.push_back(integration.methodDef);
+
+    bool caller_assembly_is_domain_neutral = runtime_information_.is_desktop() && corlib_module_loaded && module_metadata->app_domain_id == corlib_app_domain_id;
+
+    Info("Enqueue for ReJIT [ModuleId=", module_id,
+         ", MethodDef=", TokenStr(&integration.methodDef),
+         ", AppDomainId=", module_metadata->app_domain_id,
+         ", IsDomainNeutral=", caller_assembly_is_domain_neutral,
+         ", Assembly=", module_metadata->assemblyName,
+         ", Type=", caller.type.name, ", Method=", caller.name,
+         ", Signature=", caller.signature.str(), "]");
   }
 
   // Request the ReJIT for all integrations found in the module.

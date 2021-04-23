@@ -63,7 +63,7 @@ struct wrapper {
   WSTRING action;
 
   wrapper()
-      : assembly(L""), type(L""), method(L""), signature(L""), action(L"") {}
+      : assembly(L"DEFAULT"), type(L"DEFAULT"), method(L"DEFAULT"), signature(L"DEFAULT"), action(L"DEFAULT") {}
 
   wrapper(const WSTRING& assembly, const WSTRING& type, const WSTRING& method,
           const WSTRING& signature, const WSTRING& action)
