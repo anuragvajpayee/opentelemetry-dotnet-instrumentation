@@ -18,8 +18,12 @@ std::pair<classMatchRule, bool> ClassMatchRuleFromYaml(const YAML::Node& src) {
   if (src["type"]) type = ToWSTRING(src["type"].as<std::string>());
   if (src["matchType"])
     matchType = ToWSTRING(src["matchType"].as<std::string>());
-  if (src["matchValue"])
-    matchValue = src["matchValue"].as<std::vector<std::string>>();
+  if (src["matchValue"]) {
+    if (src["matchValue"].IsSequence())
+      matchValue = src["matchValue"].as<std::vector<std::string>>();
+    else if (src["matchValue"].IsScalar())
+      matchValue = {src["matchValue"].as<std::string>()};
+  }
 
   if (src["type"] && src["matchType"])
     return std::make_pair<classMatchRule, bool>({type, matchType, matchValue},
@@ -39,8 +43,12 @@ std::pair<methodMatchRule, bool> MethodMatchRuleFromYaml(
   if (src["type"]) type = ToWSTRING(src["type"].as<std::string>());
   if (src["matchType"])
     matchType = ToWSTRING(src["matchType"].as<std::string>());
-  if (src["matchValue"])
-    matchValue = src["matchValue"].as<std::vector<std::string>>();
+  if (src["matchValue"]) {
+    if (src["matchValue"].IsSequence())
+      matchValue = src["matchValue"].as<std::vector<std::string>>();
+    else if (src["matchValue"].IsScalar())
+      matchValue = {src["matchValue"].as<std::string>()};
+  }
   if (src["matchParams"]) matchParams = src["matchParams"].as<bool>();
   if (src["paramTypes"])
     paramTypes = src["paramTypes"].as<std::vector<std::string>>();
