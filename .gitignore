@@ -282,4 +282,16 @@ src/Datadog.Trace.ClrProfiler.Native/build/
 
 # ignore blog folder from upstream
 blog/
+
+# ignore vcxproj.filters
 /src/OpenTelemetry.AutoInstrumentation.ClrProfiler.Native/OpenTelemetry.AutoInstrumentation.ClrProfiler.Native.vcxproj.filters
+
+# ignore Cmake files
+src/OpenTelemetry.AutoInstrumentation.ClrProfiler.Native/CMakeCache.txt
+src/OpenTelemetry.AutoInstrumentation.ClrProfiler.Native/CMakeFiles/
+*.cmake
+src/OpenTelemetry.AutoInstrumentation.ClrProfiler.Native/Makefile
+
+#Others
+src/OpenTelemetry.AutoInstrumentation.ClrProfiler.Native/tmp.Linux_x86_64/
+src/OpenTelemetry.AutoInstrumentation.ClrProfiler.Native/deps

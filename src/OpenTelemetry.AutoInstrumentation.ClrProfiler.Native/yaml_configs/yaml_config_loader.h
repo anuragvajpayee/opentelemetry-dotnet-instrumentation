@@ -12,9 +12,9 @@ namespace trace {
 
 std::vector<instrumentationConfig> LoadConfigsFromEnvironment();
 
-std::wstring GetFilterIDFromConfigCache(mdToken key);
+WSTRING GetFilterIDFromConfigCache(mdToken key);
 
-void AddFilterIDToConfigCache(mdToken key, std::wstring value);
+void AddFilterIDToConfigCache(mdToken key, WSTRING value);
 }  // namespace trace
 
 #endif  // !INCEPTION_CLR_PROFILER_YAML_CONFIG_LOADER_H

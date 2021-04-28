@@ -36,7 +36,7 @@ struct methodMatchRule {
   bool matchParams;
   std::vector<WSTRING> m_paramTypes;
 
-  methodMatchRule() : type(L""), matchType(L""), matchParams(false) {}
+  methodMatchRule() : type(WStr("")), matchType(WStr("")), matchParams(false) {}
 
   methodMatchRule(const WSTRING& type, const WSTRING& matchType,
                   const std::vector<std::string>& matchValue,
@@ -63,7 +63,7 @@ struct wrapper {
   WSTRING action;
 
   wrapper()
-      : assembly(L"DEFAULT"), type(L"DEFAULT"), method(L"DEFAULT"), signature(L"DEFAULT"), action(L"DEFAULT") {}
+      : assembly(WStr("DEFAULT")), type(WStr("DEFAULT")), method(WStr("DEFAULT")), signature(WStr("DEFAULT")), action(WStr("DEFAULT")) {}
 
   wrapper(const WSTRING& assembly, const WSTRING& type, const WSTRING& method,
           const WSTRING& signature, const WSTRING& action)

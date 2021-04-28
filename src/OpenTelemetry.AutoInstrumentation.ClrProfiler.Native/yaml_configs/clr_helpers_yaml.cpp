@@ -1,7 +1,7 @@
 #include "clr_helpers_yaml.h"
 #include <iostream>
 #include <string>
-#include <regex>
+#include <re2/re2.h>
 
 namespace trace {
 
@@ -27,7 +27,7 @@ bool MatchesRegex(const WSTRING& matchValue, const WSTRING& target) {
   //std::wcout << "matchValue -> " << matchValue << "\n";
   //std::wcout << "target -> " << target << "\n";
 
-  return std::regex_match(ToString(target), std::regex(ToString(matchValue)));
+  return RE2::FullMatch(ToString(target), ToString(matchValue));
 }
 
 bool TestRule(const WSTRING& matchType, const std::vector<WSTRING>& matchValues,
@@ -38,19 +38,19 @@ bool TestRule(const WSTRING& matchType, const std::vector<WSTRING>& matchValues,
   for (auto matchValue : matchValues) {
     // std::wcout << "matchValue - " << matchValue << " matchType - " <<
     // matchType << " target - " << target << "\n";
-    if (matchType == L"eq") {
+    if (matchType == WStr("eq")) {
       if (matchValue == target) return true;
-    } else if (matchType == L"startswith") {
+    } else if (matchType == WStr("startswith")) {
       if (StartsWith(matchValue, target)) return true;
-    } else if (matchType == L"endswith") {
+    } else if (matchType == WStr("endswith")) {
       if (EndsWith(matchValue, target)) return true;
-    } else if (matchType == L"regex") {
+    } else if (matchType == WStr("regex")) {
       if (MatchesRegex(matchValue, target)) return true;
-    } else if (matchType == L"isNull") {
+    } else if (matchType == WStr("isNull")) {
       if (target.empty()) return true;
-    } else if (matchType == L"isNotNull") {
+    } else if (matchType == WStr("isNotNull")) {
       if (!target.empty()) return true;
-    } else if (matchType == L"contains") {
+    } else if (matchType == WStr("contains")) {
       if (target.find(matchValue)) return true;
     }
   }
@@ -92,9 +92,9 @@ bool checkParameters(const FunctionInfo& methodInfo,
 
 bool QualifyMethod(const FunctionInfo& functionInfo,
                    const std::vector<classMethodFilter>& filters,
-                   wrapper& methodWrapper, std::wstring& filterIDs,
+                   wrapper& methodWrapper, WSTRING& filterIDs,
                    const ComPtr<IMetaDataImport2>& metadata_import) {
-  filterIDs = L"";
+  filterIDs = WStr("");
   for (auto filter : filters) { // Going over all the selected CMFs that are valid for this method's class
     bool skipThisCMF = false;
     for (auto exclude : filter.m_methodMatch.excludes) { // All method excludes in this CMF
@@ -113,7 +113,7 @@ bool QualifyMethod(const FunctionInfo& functionInfo,
       if (TestRule(include.matchType, include.m_matchValue,
                    functionInfo.name) &&
           checkParameters(functionInfo, include, metadata_import)) {
-        if (!filterIDs.empty()) filterIDs.append(L"; ");
+        if (!filterIDs.empty()) filterIDs.append(WStr(", "));
         filterIDs.append(filter.m_id);
         methodWrapper = filter.m_wrapper;
         break;
@@ -124,8 +124,8 @@ bool QualifyMethod(const FunctionInfo& functionInfo,
 }
 
 std::pair<std::vector<ValidIntegration>, bool> QualifyRules(
-    wchar_t* className, wchar_t* parentClassName,
-    const std::vector<std::wstring>& interfaceList,
+    WCHAR* className, WCHAR* parentClassName,
+    const std::vector<WSTRING>& interfaceList,
     const std::vector<FunctionInfo>& methods,
     const std::vector<instrumentationConfig>& all_configs,
     const ComPtr<IMetaDataImport2>& metadata_import) {
@@ -142,23 +142,22 @@ std::pair<std::vector<ValidIntegration>, bool> QualifyRules(
         for (auto exclude :
              cmf.m_classMatch.excludes) {  // All excludes inside this CMF
 
-          if (exclude.type == L"matchClass") {
-            if (TestRule(exclude.matchType, exclude.m_matchValue,
-                         std::wstring(className))) {
+          if (exclude.type == WStr("matchClass")) {
+            if (TestRule(exclude.matchType, exclude.m_matchValue,className)) {
               skipThisCMF = true;
               break;
             }
           }
 
-          else if (exclude.type == L"matchSuperClass") {
-            if (TestRule(exclude.matchType, exclude.m_matchValue,
-                         std::wstring(parentClassName))) {
+          else if (exclude.type == WStr("matchSuperClass")) {
+            if (TestRule(exclude.matchType,exclude.m_matchValue,
+                         parentClassName)) {
               skipThisCMF = true;
               break;
             }
           }
 
-          else if (exclude.type == L"matchInterface") {
+          else if (exclude.type == WStr("matchInterface")) {
             bool foundInterfaceExclude = true;
             for (auto interf : interfaceList) {
               if (TestRule(exclude.matchType, exclude.m_matchValue, interf)) {
@@ -180,25 +179,24 @@ std::pair<std::vector<ValidIntegration>, bool> QualifyRules(
         for (auto include :
              cmf.m_classMatch.includes) {  // All includes inside this CMF
 
-          if (include.type == L"matchClass") {
-            if (TestRule(include.matchType, include.m_matchValue,
-                         std::wstring(className))) {
+          if (include.type == WStr("matchClass")) {
+            if (TestRule(include.matchType, include.m_matchValue, className)) {
               methodMatchRules.push_back(cmf);
               break;
             }
           }
 
-          else if (include.type == L"matchSuperClass") {
+          else if (include.type == WStr("matchSuperClass")) {
             //std::wcout << "Yes found superclass for " << className << " "
             //          << parentClassName << "\n";
             if (TestRule(include.matchType, include.m_matchValue,
-                         std::wstring(parentClassName))) {
+                         parentClassName)) {
               methodMatchRules.push_back(cmf);
               break;
             }
           }
 
-          else if (include.type == L"matchInterface") {
+          else if (include.type == WStr("matchInterface")) {
             bool found = false;
             for (auto interf : interfaceList) {
               if (TestRule(include.matchType, include.m_matchValue, interf)) {
@@ -216,12 +214,12 @@ std::pair<std::vector<ValidIntegration>, bool> QualifyRules(
       }
     }
   }
-  
+
   if (methodMatchRules.size() == 0)
     return std::make_pair<std::vector<ValidIntegration>, bool>({}, false);
-  
+
   for (auto method : methods) {
-    std::wstring filterIDs = L"";
+    WSTRING filterIDs = WStr("");
     wrapper methodWrapper;
     if (!QualifyMethod(method, methodMatchRules, methodWrapper, filterIDs,
                        metadata_import))

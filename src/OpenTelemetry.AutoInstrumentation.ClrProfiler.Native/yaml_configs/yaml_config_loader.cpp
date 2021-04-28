@@ -1,12 +1,19 @@
 #include "yaml_config_loader.h"
 
-#include <iostream>
+#ifdef _WIN32
 #include <filesystem>
+namespace n_fs = std::filesystem;
+#else
+#include <experimental/filesystem>
+namespace n_fs = std::experimental::filesystem;
+#endif
+
+#include <iostream>
 #include <unordered_map>
 #include "../environment_variables.h"
 #include "../util.h"
 
-static std::unordered_map<mdToken, std::wstring> filterIDs;
+static std::unordered_map<mdToken, trace::WSTRING> filterIDs;
 
 namespace trace {
 
@@ -188,14 +195,18 @@ std::vector<instrumentationConfig> LoadConfigsFromEnvironment() {
 //  std::string filePath = __FILE__;
 //  std::string yamlPath = filePath.substr(0, filePath.size() - 133) +
 //                         "conf\\rules\\instrumentation";
-  std::string yamlDirectory =
+  /*std::string yamlDirectory =
       ToString(GetEnvironmentValues(environment::inception_home)[0]);
-  std::string yamlPath = yamlDirectory + "\\conf\\rules\\instrumentation";
+  std::string yamlPath = yamlDirectory + "\\conf\\rules\\instrumentation";*/
+
+  n_fs::path yamlConfigDir = ToString(GetEnvironmentValues(environment::inception_home)[0]);
+
+  yamlConfigDir /= "conf", yamlConfigDir /= "rules", yamlConfigDir /= "instrumentation";
 
   std::vector<std::string> yamlPaths;
 
   //std::cout << "Reading yamls from - " + yamlPath;
-  for (auto &p : std::filesystem::recursive_directory_iterator(yamlPath)) {
+  for (auto &p : n_fs::directory_iterator(yamlConfigDir)) {
     if (p.path().extension() == ".yaml") {
       yamlPaths.push_back(p.path().string());
     }
@@ -232,14 +243,14 @@ std::vector<instrumentationConfig> LoadConfigsFromEnvironment() {
 
 //************************* Filter ID Map ********************************
 
-std::wstring GetFilterIDFromConfigCache(mdToken key) {
+WSTRING GetFilterIDFromConfigCache(mdToken key) {
   if (filterIDs.find(key) != filterIDs.end())
     return filterIDs[key];
   else
-    return L"-1";
+    return WStr("-1");
 }
 
-void AddFilterIDToConfigCache(mdToken key, std::wstring value) {
+void AddFilterIDToConfigCache(mdToken key, WSTRING value) {
   filterIDs[key] = value;
   return;
 }
