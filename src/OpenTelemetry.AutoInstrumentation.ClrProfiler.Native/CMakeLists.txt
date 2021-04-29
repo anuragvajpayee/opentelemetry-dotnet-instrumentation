@@ -124,13 +124,11 @@ if (NOT EXISTS ${OUTPUT_DEPS_DIR}/fmt)
 endif()
 
 if (NOT EXISTS ${OUTPUT_DEPS_DIR}/yaml-cpp)
-    message(STATUS "Hello just before yaml")
     add_custom_command(
         OUTPUT ${OUTPUT_DEPS_DIR}/yaml-cpp
         COMMAND git clone --depth 1 https://github.com/jbeder/yaml-cpp.git && cd yaml-cpp && mkdir build && cd build && cmake -DYAML_BUILD_SHARED_LIBS=ON .. && make
         WORKING_DIRECTORY ${OUTPUT_DEPS_DIR}
     )
-    message(STATUS "Add custom command successful for yaml-cpp")
 endif()
 
 # Set Managed Loader folder
