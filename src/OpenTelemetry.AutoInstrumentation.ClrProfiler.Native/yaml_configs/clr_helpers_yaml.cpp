@@ -1,7 +1,12 @@
 #include "clr_helpers_yaml.h"
 #include <iostream>
 #include <string>
+
+#ifdef _WIN32
+#include <regex>
+#else
 #include <re2/re2.h>
+#endif
 
 namespace trace {
 
@@ -27,7 +32,11 @@ bool MatchesRegex(const WSTRING& matchValue, const WSTRING& target) {
   //std::wcout << "matchValue -> " << matchValue << "\n";
   //std::wcout << "target -> " << target << "\n";
 
+  #ifdef _WIN32
+  return std::regex_match(ToString(target), std::regex(ToString(matchValue)));
+  #else
   return RE2::FullMatch(ToString(target), ToString(matchValue));
+  #endif
 }
 
 bool TestRule(const WSTRING& matchType, const std::vector<WSTRING>& matchValues,
