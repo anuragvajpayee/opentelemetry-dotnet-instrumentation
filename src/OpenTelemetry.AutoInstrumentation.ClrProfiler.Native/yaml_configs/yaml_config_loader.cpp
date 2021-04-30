@@ -10,6 +10,7 @@ namespace n_fs = std::experimental::filesystem;
 
 #include <iostream>
 #include <unordered_map>
+#include "../logging.h"
 #include "../environment_variables.h"
 #include "../util.h"
 
@@ -213,7 +214,14 @@ std::vector<instrumentationConfig> LoadConfigsFromEnvironment() {
   }
 
   for (const auto f : yamlPaths) {
-    YAML::Node yamlFile = YAML::LoadFile(ToString(f));
+    YAML::Node yamlFile;
+    try {
+      yamlFile = YAML::LoadFile(ToString(f));
+      //To handle incorrect YAML files
+    } catch (const YAML::ParserException& ex) {
+      Info("Invalid YAML found at ", f, " ParserException: ", ex.what());
+      continue;
+    }
     WSTRING name, type;
     bool disabled;
     int priority;
