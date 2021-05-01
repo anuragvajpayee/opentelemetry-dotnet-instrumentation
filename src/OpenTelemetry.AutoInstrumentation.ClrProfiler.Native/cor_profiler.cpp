@@ -2291,7 +2291,7 @@ Debug("GenerateVoidILStartupMethod: Linux: Setting the PInvoke native profiler l
   auto load_helper_str_size = wcslen(load_helper_str);
 #else
   char16_t load_helper_str[] =
-      u"Inception.ClrProfiler.Managed.Loader.Loader.Startup";
+      u"Datadog.Trace.ClrProfiler.Managed.Loader.Startup";
   auto load_helper_str_size = std::char_traits<char16_t>::length(load_helper_str);
 #endif
 
