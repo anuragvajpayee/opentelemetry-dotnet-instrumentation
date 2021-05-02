@@ -3119,15 +3119,18 @@ HRESULT CorProfiler::CallTarget_RewriterCallback(RejitHandlerModule* moduleHandl
   WSTRING wfilterID = GetFilterIDFromConfigCache(function_token);
 #ifdef _WIN32
   LPCWSTR filterID = wfilterID.c_str();
+  auto filterLen = wcslen(filterID);
 #else
   char16_t filterID[wfilterID.length()+1];
-  for(int i=0; i < wfilterID.length()+1; i++){
+  for(int i=0; i < wfilterID.length(); i++){
     filterID[i] = wfilterID[i];
   }
+  filterID[wfilterID.length()] = '\0';
+  auto filterLen = std::char_traits<char16_t>::length(filterID);
 #endif
   mdString filterID_token;
   if (module_metadata->metadata_emit->DefineUserString(
-      filterID, (ULONG) wfilterID.size(), &filterID_token) < 0) {
+      filterID, (ULONG) filterLen, &filterID_token) < 0) {
     Warn("DefineUserStringFailed for filterID");
     return E_FAIL;
   }
